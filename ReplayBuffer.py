@@ -12,10 +12,9 @@ class ReplayBuffer:
         self.recents = deque()
         self.length = 10000
         self.losses = deque()
-
-        if not load:
-            self.memoryframe = pd.DataFrame({"state": [], "action": [], "state_": [], "reward": [], "done": []})
-        else:
+        self.memoryframe = pd.DataFrame({"state": [], "action": [], "state_": [], "reward": [], "done": []})
+        
+        if load:
             mem1 = pd.read_pickle("Resources/Memories/mem1.pkl")
             mem2 = pd.read_pickle("Resources/Memories/mem2.pkl")
             mem3 = pd.read_pickle("Resources/Memories/mem3.pkl")
@@ -32,18 +31,22 @@ class ReplayBuffer:
 
     def save(self):
         """Saves all experiences in the replay buffer to csv files."""
-        backup_memoryframe = self.memoryframe
-        self.memoryframe = pd.concat([self.memory])
-        self.recents = deque()
-        try:
-            self.split_save(self.memoryframe)
-        except Exception as e:
-            try:
-                print(f"Failed to save memories - Error: {e}")
-                self.split_save(backup_memoryframe)
-            except Exception as e:
-                print(f"Failed to save backup memories - Error: {e}")
-        np.savetxt("Resources/memories/losses.csv", np.array(self.losses), delimiter=",")
+
+        states = []
+        actions = []
+        states_ = []
+        rewards = []
+        dones = []
+        for memory in self.memory:
+            state, action, state_, reward, done = memory
+            states.append(state)
+            actions.append(action)
+            states_.append(state_)
+            rewards.append(reward)
+            dones.append(done)
+
+        frame_to_save = pd.DataFrame({"state": states, "action": actions, "state_": states, "reward": rewards, "done": dones})
+        self.split_save(frame_to_save)
 
     def split_save(self, frame):
         """Split dataframe into 3, then save individually"""
