@@ -1,91 +1,118 @@
-from collections import OrderedDict
-
-import win32gui
-import numpy as np
-import cv2
-from PIL import Image
+import os
 import time
+
+import cv2
+import keyboard as kb
+import numpy as np
 import pandas as pd
 import pyautogui as ui
-import keyboard as kb
-import os
-import absl
+import win32con
+import win32com.client
+import win32gui
+from PIL import Image
 
 from Resources.Models.ElixirModel import ElixirModel
-from Resources.Models.EnemyTowerModel import EnemyTowerHealthModel
 
-
-
-
-
-absl.logging.set_verbosity(absl.logging.ERROR)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 class ClashRoyaleHandler:
-    def __init__(self):
+    """A class used to interact with a bluestacks instance of Clash Royale"""
+    def __init__(self, spells=False):
         def create_elixir_model():
             self.elixir_model = ElixirModel()
             self.elixir_model.load_model()
-
-        def create_enemy_towers_model():
-            self.enemy_tower_model = EnemyTowerHealthModel()
-            self.enemy_tower_model.load_model()
 
         create_elixir_model()
 
         self.top_right = (self.get_window_dimensions()[0], self.get_window_dimensions()[1])
         self.scalars = self.get_window_scalars()
+        self.spells = spells
 
     def get_state(self):
+        """
+        Returns the current state of the Clash Royale arena.
+
+        :return: state (dict): A dictionary containing data about the field, elixir-count, card, choices
+        relevant to the current state of the game
+        """
         frame = self.get_frame()
 
         field_data = self.gen_field_data(frame)
 
         elixir_data = self.predict_elixir(frame)
 
-        choice_data = self.gen_choice_data(frame)
+        choice_data, card_data = self.gen_choice_data(frame)
 
-        state_data = OrderedDict({"field_data": field_data,
-                                  "elixir_data": elixir_data,
-                                  "choice_data": choice_data,
-                                  })
+        state = {
+            "field_data": field_data,
+            "elixir_data": elixir_data,
+            "choice_data": choice_data,
+            "card_data": card_data
+        }
 
-        return state_data
+        return state
 
     # Essential
     def get_frame(self):
-        window_dimensions = self.get_window_dimensions()
+        """
+        Returns a rescaled image (244x419) of game.
 
+        :return: window_image_rescaled (np.array): A numpy array of an image of the Clash Royale window
+        """
+        window_dimensions = self.get_window_dimensions()
         screenshot = cv2.cvtColor(np.asarray(ui.screenshot()), cv2.COLOR_BGR2RGB)
         screenshot = Image.fromarray(np.asarray(screenshot))
         window_image = screenshot.crop((window_dimensions))
         window_image = np.asarray(window_image)
-
-        window_image_rescaled = cv2.resize(window_image, (244, 419), interpolation= cv2.INTER_AREA)
-        window_image_rescaled = cv2.cvtColor(window_image_rescaled, cv2.COLOR_BGR2RGB)
+        window_image_rescaled = cv2.resize(window_image, (244, 419), interpolation=cv2.INTER_AREA)
+        window_image_rescaled = np.array(cv2.cvtColor(window_image_rescaled, cv2.COLOR_BGR2RGB))
         return window_image_rescaled
 
     def get_window_dimensions(self):
+        """
+        Returns the dimensions of the Clash Royale window (not including the title bar)
+        in the format - (left, top, right, bottom).
+
+        :return: window_dimensions (tuple): A tuple containing the dimensions of the Clash Royale window
+        """
         window = win32gui.FindWindow(None, "BlueStacks App Player")
-        # win32gui.SetForegroundWindow(window)
+        win32gui.ShowWindow(window, win32con.SW_RESTORE)
+        shell = win32com.client.Dispatch("WScript.Shell")
+        shell.SendKeys("%")
+        win32gui.SetForegroundWindow(window)
+
         time.sleep(0.05)
         window_dimensions = win32gui.GetWindowRect(window)
         window_dimensions = (window_dimensions[0], window_dimensions[1] + 45, *window_dimensions[2:])
         return window_dimensions
 
     def get_window_scalars(self):
-        window_dimensions = self.get_window_dimensions()
+        """
+        Returns the length and width scalars of the current window size given the standard window size (244,419).
 
+        :return: scalars (tuple): A tuple containing 2 float values
+        """
+        window_dimensions = self.get_window_dimensions()
         current_dimensions = (window_dimensions[3] - window_dimensions[1], window_dimensions[2] - window_dimensions[0])
-        return current_dimensions[1] / 244, current_dimensions[0] / 419
+        scalars = (current_dimensions[1] / 244, current_dimensions[0] / 419)
+        return scalars
 
     # Visualization
     def save_current_frame(self):
+        """
+        Saves the current frame of the Clash Royale window to the "Visualizations" folder.
+
+        :return: None
+        """
         current_frame = cv2.cvtColor(np.asarray(self.get_frame()), cv2.COLOR_RGB2BGR)
         cv2.imwrite(f"Visualizations/Image.png", current_frame)
 
     # Interaction
     def battle(self):
+        """
+        Clicks the "Battle" button in the Clash Royale window.
+
+        :return: None
+        """
         self.scalars = self.get_window_scalars()
         window_dimensions = self.get_window_dimensions()
         battle_button_location = (78 * self.scalars[0] + window_dimensions[0],
@@ -95,6 +122,11 @@ class ClashRoyaleHandler:
         time.sleep(0.5)
 
     def start_training_game(self):
+        """
+        Starts a training game in the Clash Royale window.
+
+        :return: None
+        """
         self.scalars = self.get_window_scalars()
         window_dimensions = self.get_window_dimensions()
         options_button_location = (225 * self.scalars[0] + window_dimensions[0],
@@ -116,6 +148,12 @@ class ClashRoyaleHandler:
         time.sleep(4.5)
 
     def act(self, choice):
+        """
+        Executes the action correlating to the choice given.
+
+        :param choice: A dictionary containing data about an executable action
+        :return: None
+        """
         self.scalars = self.get_window_scalars()
         if choice is None:
             return
@@ -131,6 +169,11 @@ class ClashRoyaleHandler:
         ui.click(self.top_right[0] + 5, self.top_right[1] + 5)
 
     def leave_game(self):
+        """
+        Leaves a finished game in the Clash Royale window.
+
+        :return: None
+        """
         self.scalars = self.get_window_scalars()
         window_dimensions = self.get_window_dimensions()
         ok_button_location = (
@@ -140,6 +183,11 @@ class ClashRoyaleHandler:
         ui.click(ok_button_location)
 
     def acknowledge_reward_limit_reached(self):
+        """
+        Clicks the "Reward limit reached" button if it pops up, clicks a space and has no effect otherwise.
+
+        :return: None
+        """
         self.scalars = self.get_window_scalars()
         window_dimensions = self.get_window_dimensions()
         ok_button_location = (
@@ -148,9 +196,13 @@ class ClashRoyaleHandler:
         )
         ui.click(ok_button_location)
         time.sleep(0.5)
-        return True
 
     def ignore_new_reward(self):
+        """
+        Ignores new reward if available, otherwise does nothing.
+
+        :return: None
+        """
         if self.check_for_new_reward():
             self.scalars = self.get_window_scalars()
             window_dimensions = self.get_window_dimensions()
@@ -160,19 +212,28 @@ class ClashRoyaleHandler:
             )
             ui.click(ok_button_location)
             time.sleep(0.5)
-            return True
-        else:
-            return False
-
-
 
     # Verification
     def match_to_template(self, image, template, threshold):
-        res = cv2.matchTemplate(np.asarray(image), template, cv2.TM_CCOEFF_NORMED)
-        min, max, thing1, thing2 = cv2.minMaxLoc(res)
-        return max >= threshold
+        """
+        Standard template matching.
+
+        :param image: A 2D iterable (must be smaller than template)
+        :param template: A 2D iterable (must be bigger than image)
+        :param threshold: A float (should be 0.0<=x<=1.0) that determines how well the image must match the template
+        :return: A boolean representing whether the image matches the template at the given threshold
+        """
+        matches = cv2.matchTemplate(np.asarray(image), template, cv2.TM_CCOEFF_NORMED)
+        _, m, _, _ = cv2.minMaxLoc(matches)
+        return m >= threshold
 
     def training_game_over(self):
+        """
+        Checks if there is a training game ongoing in the Clash Royale window.
+
+        :return: A boolean representing whether a training match is ongoing or not
+        """
+
         frame = Image.fromarray(np.array(self.get_frame()))
         rectangle = np.asarray(frame.crop((205, 0, 242, 7)))
         rectangle = cv2.cvtColor(np.asarray(rectangle), cv2.COLOR_BGR2RGB)
@@ -185,21 +246,31 @@ class ClashRoyaleHandler:
         return not any(matches)
 
     def game_is_over(self):
+        """
+        Checks if a competitive game is ongoing in the Clash Royale window.
+
+        :return: A boolean representing whether a competitive game is ongoing or not
+        """
         frame = Image.fromarray(np.array(self.get_frame()))
-        rectangle = np.asarray(frame.crop((50, 400, 60, 415)))
+        rectangle = np.asarray(frame.crop((10, 25, 13, 28)))
         rectangle = cv2.cvtColor(np.asarray(rectangle), cv2.COLOR_BGR2RGB)
 
         cv2.imwrite("Resources/Data/EpisodialImageData/game_is_over.png", rectangle)
         image = np.asarray(Image.open("Resources/Data/EpisodialImageData/game_is_over.png"))
 
         matches = []
-        for size in ("XS", "S", "M", "L", "XL"):
+        for size in ("XS", "S", "M", "L", "XL", "O"):
             template = np.asarray(Image.open(f"Resources/Templates/OngoingBattle{size}.png"))
-            matches.append(self.match_to_template(image, template, 0.60))
+            matches.append(self.match_to_template(image, template, 0.70))
 
         return not any(matches)
 
     def at_home_screen(self):
+        """
+        Checks that the current state of the Clash Royale window is the home screen.
+
+        :return: A boolean representing whether the game window is currently at the home screen
+        """
         frame = Image.fromarray(np.array(self.get_frame()))
         rectangle = np.asarray(frame.crop((108, 390, 136, 399)))
 
@@ -211,6 +282,11 @@ class ClashRoyaleHandler:
         return self.match_to_template(image, template, 0.7)
 
     def check_reward_limit_reached(self):
+        """
+        Checks if the reward limit is reached.
+
+        :return: A boolean representing whether the reward limit has been reached
+        """
         frame = Image.fromarray(np.array(self.get_frame()))
         rectangle = np.asarray(frame.crop((85, 155, 153, 214)))
 
@@ -220,6 +296,11 @@ class ClashRoyaleHandler:
         return self.match_to_template(rectangle, template, 0.6)
 
     def check_for_new_reward(self):
+        """
+        Checks if there is a new reward.
+
+        :return: A boolean representing whether there is a new reward or not
+        """
         frame = Image.fromarray(np.array(self.get_frame()))
         rectangle = np.asarray(frame.crop((85, 387, 163, 410)))
         cv2.imwrite("Resources/Data/EpisodialImageData/NewReward.png", rectangle)
@@ -228,13 +309,14 @@ class ClashRoyaleHandler:
         template = np.asarray(Image.open("Resources/Templates/NewReward.png"))
 
         return self.match_to_template(image, template, 0.6)
-    # Observations
-    def determine_winner(self):
-        player_crowns = self.get_player_crowns()
-        enemy_crowns = self.get_enemy_crowns()
-        return player_crowns > enemy_crowns, enemy_crowns > player_crowns
 
+    # Observations
     def get_player_crowns(self):
+        """
+        Returns the amount of crowns the player won.
+
+        :return: An integer corresponding to the amount of crowns the player has won
+        """
         frame = Image.fromarray(np.array(self.get_frame()))
         crown_1 = cv2.cvtColor(np.asarray(frame.crop((60, 200, 72, 210))), cv2.COLOR_BGR2RGB)
         crown_2 = cv2.cvtColor(np.asarray(frame.crop((116, 193, 128, 207))), cv2.COLOR_BGR2RGB)
@@ -254,14 +336,19 @@ class ClashRoyaleHandler:
             crowns.append(np.asarray(Image.open(f"Resources/Data/EpisodialImageData/Player_{num}_crown.png")))
 
         for num, (crown, template, battle_template) in enumerate(zip(crowns, templates, battle_templates)):
-                if self.match_to_template(crown, template, 0.6) or self.match_to_template(crown, battle_template, 0.6):
-                    continue
-                else:
-                    return num
+            if self.match_to_template(crown, template, 0.6) or self.match_to_template(crown, battle_template, 0.6):
+                continue
+            else:
+                return num
 
         return 3
 
     def get_enemy_crowns(self):
+        """
+        Returns the amount of crowns the enemy won.
+
+        :return: An integer corresponding to the amount of crowns the enemy has won
+        """
         frame = Image.fromarray(np.array(self.get_frame()))
         crown_1 = cv2.cvtColor(np.asarray(frame.crop((59, 86, 69, 93))), cv2.COLOR_BGR2RGB)
         crown_2 = cv2.cvtColor(np.asarray(frame.crop((114, 79, 124, 88))), cv2.COLOR_BGR2RGB)
@@ -287,27 +374,50 @@ class ClashRoyaleHandler:
 
     # Elixir
     def get_elixir_image(self, frame):
+        """
+        Returns an image of the elixir bar.
+
+        :param frame: A 2D iterable image of the current frame
+        :return: elixir_image (np.array): A numpy array of the elixir bar image
+        """
         frame = Image.fromarray(frame)
         elixir_image = frame.crop((66, 408, 233, 409))  # 167x1
         elixir_image = np.array(elixir_image)
         return elixir_image
 
     def fit_model_elixir(self, elixir_image, elixir_count):
+        """
+        Trains elixir model.
+
+        :param elixir_image: A 2D iterable representing an image of the elixir bar
+        :param elixir_count: An integer of representing the approximate amount of elixir displayed in the image
+        :return: None
+        """
         self.elixir_model.fit(elixir_image, elixir_count)
 
     def predict_elixir(self, frame):
+        """
+        Returns a prediction of the amount of the elixir currently available.
+
+        :param frame: A 2D iterable representing an image of the Clash Royale window
+        :return: prediction (float): The prediction of the elixir count
+        """
         elixir_image = self.get_elixir_image(frame)
         prediction = self.elixir_model.predict(elixir_image)[0][0]
 
         return prediction
 
-    def elixir_model_mass_fitting(self):
+    def elixir_model_mass_training(self):
+        """
+        Trains the elixir model (requires user interaction)
+        :return: None
+        """
         images = []
         while True:
             x = input("take photo?:")
             if x == 'no':
                 break
-            images.append(env.get_elixir_image(env.get_frame()))
+            images.append(self.get_elixir_image(self.get_frame()))
 
         for image in images:
             cv2.imshow('fff', cv2.resize(np.array(image), (800, 200)))
@@ -316,6 +426,13 @@ class ClashRoyaleHandler:
             self.elixir_add_to_training(image, x)
 
     def elixir_add_to_training(self, image, elixir):
+        """
+        Adds sample to elixir model training data.
+
+        :param image: A 2D iterable representing an image of the elixir bar
+        :param elixir: An integer or float representing the approximate amount of elixir available
+        :return: None
+        """
         training_data = pd.read_pickle("Resources/Models/TrainingData/ElixirData.pkl")
         new_data = pd.DataFrame({"Elixir": [elixir], "image": [np.asarray(image)]})
         training_data = pd.concat([training_data, new_data], sort=False)
@@ -323,39 +440,36 @@ class ClashRoyaleHandler:
 
     # Field
     def gen_field_data(self, frame):
+        """
+        Returns data representing the current state of the field.
+
+        :param frame: A 2D iterable representing an image of the Clash Royale window
+        :return: field_data (dict): containing data about the field of the battle
+        """
         full_image = np.asarray(cv2.cvtColor(np.asarray(frame), cv2.COLOR_BGR2GRAY))
-        field_dimensions = OrderedDict({
+        field_dimensions = {
             "enemy_side_dimensions": (20, 36, 226, 164),  # 206x128: 26,368px
             "left_bridge_dimensions": (50, 162, 68, 186),  # 18x24: 432px
             "right_bridge_dimensions": (175, 162, 193, 186),  # 18x24: 432px
             "player_side_dimensions": (20, 182, 226, 314),  # 206x132: 26,368px
-        })
+        }
 
-        field_data = OrderedDict()
+        field_data = {}
         for place, dimensions in field_dimensions.items():
             image = np.asarray(Image.fromarray(full_image).crop(dimensions))
             field_data[place] = image
 
         return field_data
 
-    def add_field_to_encoder_data(self):
-        data_path = "Resources/Models/TrainingData"
-        field_data = self.gen_field_data(self.get_frame())
-        ordered_field_data = []
-        for key in field_data.values():
-            ordered_field_data.append(key)
-        frame = pd.read_pickle(f"{data_path}/EncoderData.pkl")
-
-        new_frame = pd.DataFrame({
-            "enemy":[ordered_field_data[0]], "left":[ordered_field_data[1]],
-            "right":[ordered_field_data[2]], "player":[ordered_field_data[3]]
-        })
-        frame = pd.concat([frame, new_frame])
-        frame.to_pickle(f"{data_path}/EncoderData.pkl")
-
-
     # Choices
     def gen_choice_data(self, frame):
+        """
+        Returns a dictionary of the action choices currently available.
+
+        :param frame: A 2D iterable representing an image of the Clash Royale window
+        :param spells: A boolean indicating if there are spells in the deck being used
+        :return: A tuple (list[dict,dict,...], list[np.array,np.array]) representing the action choices and cards - respectively - available
+        """
         window_dimensions = self.get_window_dimensions()
 
         window_bottom_left = (window_dimensions[0], window_dimensions[3])
@@ -366,7 +480,7 @@ class ClashRoyaleHandler:
 
         # 1tile - 24x20px
         screen_tile_size = (11 * self.scalars[0], 8 * self.scalars[1])
-        choice_data = [None,]
+        choice_data = [None, ]
         card_choices = self.get_cards(frame)
         for x in range(0, 18):
             for y in range(0, 14):
@@ -374,17 +488,36 @@ class ClashRoyaleHandler:
                     tile_coordinates = np.array([x, y])
                     tile_screen_location = ((bottom_left_tile_location[0] + (x * screen_tile_size[0])),
                                             (bottom_left_tile_location[1] - (y * screen_tile_size[1])))
-                    choice_data.append({"tile_coordinates": tile_coordinates,
-                                        "tile_screen_location": tile_screen_location,
-                                        "card_number": choice[0],
-                                        "card_image": choice[1]
-                                        })
-
-        extra_choice_data = self.gen_north_of_bridge_choice_data(card_choices)
-        choice_data.extend(extra_choice_data)
-        return choice_data
+                    try:
+                        if choice[1][0][0] != 1:
+                            choice_data.append({"tile_coordinates": tile_coordinates,
+                                                "tile_screen_location": tile_screen_location,
+                                                "card_number": choice[0],
+                                                "card": choice[1]
+                                                })
+                        else:
+                            choice_data.append(None)
+                    except IndexError:
+                        if choice[1][0] != 1:
+                            choice_data.append({"tile_coordinates": tile_coordinates,
+                                                "tile_screen_location": tile_screen_location,
+                                                "card_number": choice[0],
+                                                "card": choice[1]
+                                                })
+                        else:
+                            choice_data.append(None)
+        if self.spells:
+            extra_choice_data = self.gen_north_of_bridge_choice_data(card_choices)
+            choice_data.extend(extra_choice_data)
+        return choice_data, card_choices
 
     def gen_north_of_bridge_choice_data(self, card_choices):
+        """
+        Returns a dictionary of the action choices currently available from north of the bridge.
+
+        :param card_choices: A list of numpy arrays representing the available card options
+        :return: Choice_data (list): A list of dictionaries containing data about the action choices available north of the bridge
+        """
         window_dimensions = self.get_window_dimensions()
         window_bottom_left = (window_dimensions[0], window_dimensions[3])
         screen_tile_size = (11 * self.scalars[0], 8 * self.scalars[1])
@@ -402,22 +535,24 @@ class ClashRoyaleHandler:
                     tile_coordinates = (x, y)
                     tile_screen_location = ((tile_to_gen_from[0] + (x * screen_tile_size[0])),
                                             (tile_to_gen_from[1] - (y * screen_tile_size[1])))
-                    choice_data.append({"tile_coordinates": tile_coordinates,
-                                        "tile_screen_location": tile_screen_location,
-                                        "card_number": choice[0],
-                                        "card_image": choice[1]
-                                        })
+                    if choice[1][0] != 1:
+                        choice_data.append({"tile_coordinates": tile_coordinates,
+                                            "tile_screen_location": tile_screen_location,
+                                            "card_number": choice[0],
+                                            "card": choice[1]
+                                            })
+                    else:
+                        choice_data.append(None)
+
         return choice_data
 
     def get_cards(self, frame):
-        def visualize_cards():
-            num = 1
-            for card in (card1, card2, card3, card4):
-                card = cv2.cvtColor(np.asarray(card), cv2.COLOR_BGR2RGB)
-                cv2.imshow("fdafa", np.array(card))
-                cv2.waitKey(0)
-                num += 1
+        """
+        Returns a list of the available cards.
 
+        :param frame: A 2D iterable representing an image of the Clash Royale window
+        :return: playable_cards (list): A list of numpy arrays representing the cards currently available
+        """
         full_image = Image.fromarray(frame)
 
         # all card images are 35x43
@@ -427,108 +562,26 @@ class ClashRoyaleHandler:
         card4 = full_image.crop((195, 350, 230, 393))
 
         cards = (card1, card2, card3, card4)
+        card_images = [
+            cv2.cvtColor(np.array(Image.open(f"Resources/Cards/{card}"), dtype=np.float32), cv2.COLOR_BGR2GRAY) for card
+            in os.listdir("Resources/Cards")]
+
         playable_cards = []
+        identity = np.identity(9)
         for num in range(1, 5):
             card = cards[num - 1]
-            card = np.asarray(card)
+            card = np.array(card, dtype=np.float32)
             card = cv2.cvtColor(card, cv2.COLOR_BGR2GRAY)
-            playable_cards.append([num, np.asarray(card)])
+            added = False
+            for c_num in range(len(card_images)):
+                cc = card_images[c_num]
+                matches = cv2.matchTemplate(card / 255, cc / 255, cv2.TM_CCOEFF_NORMED)
+                _, m, _, _ = cv2.minMaxLoc(matches)
+                if m > 0.7:
+                    playable_cards.append([num, identity[c_num + 1:c_num + 2]])
+                    added = True
+            if not added:
+                playable_cards.append([num, identity[0]])
 
         return playable_cards
 
-    # Experimental
-
-    # Tower Health
-    def gen_tower_data(self, frame):
-        enemy_princess_tower_data = self.get_enemy_princess_tower_health(frame)
-        enemy_king_tower_health = self.get_enemy_king_tower_health(enemy_princess_tower_data, frame)
-        enemy_tower_data = (*enemy_princess_tower_data, enemy_king_tower_health)
-        return enemy_tower_data
-
-    def get_enemy_king_tower_health(self, enemy_tower_data, frame):
-        if all(tower > 0 for tower in enemy_tower_data):
-            return 100
-        else:
-            full_image = Image.fromarray(frame)
-            full_image = full_image.crop((223, 28, 297, 32))
-
-            full_image = cv2.resize(np.asarray(full_image), (51, 4), interpolation= cv2.INTER_AREA)
-            full_image = cv2.cvtColor(full_image, cv2.COLOR_BGR2RGB)
-
-            prediction = self.enemy_tower_model.predict(full_image)[0][0]
-            prediction = np.round(prediction * 100, 0)
-            return min(prediction, 100)
-
-    def get_left_enemy_tower_image(self, frame):
-        full_image = cv2.cvtColor(np.asarray(frame), cv2.COLOR_BGR2RGB)
-        full_image = Image.fromarray(full_image)
-        return np.asarray(full_image.crop((102, 128, 153, 132)))
-
-    def get_right_enemy_tower_image(self, frame):
-        full_image = cv2.cvtColor(np.asarray(frame), cv2.COLOR_BGR2RGB)
-        full_image = Image.fromarray(full_image)
-        return np.asarray(full_image.crop((364, 128, 415, 132)))
-
-    def get_enemy_princess_tower_health(self, frame):
-        left_prediction = int(
-            np.round(self.enemy_tower_model.predict(self.get_left_enemy_tower_image(frame)) * 100, 0)[0])
-        right_prediction = int(
-            np.round(self.enemy_tower_model.predict(self.get_right_enemy_tower_image(frame)) * 100, 0)[0])
-        return left_prediction, right_prediction
-
-    def fit_enemy_princess_tower_model(self, tower_image, percentage):
-        self.enemy_tower_model.fit(tower_image, percentage)
-
-    def add_to_training_enemy_tower(health_image, percentage):
-        training_data = pd.read_pickle("Resources/TrainingData/EnemyTowerHealthData.pkl")
-        new_frame = pd.DataFrame({"health_percentages": [percentage], "health_images": [np.asarray(health_image)]})
-        training_data = pd.concat([training_data, new_frame], sort=False)
-        # training_data = training_data[training_data["health_percentages"] != 1022/1512]
-        training_data.to_pickle("Resources/TrainingData/EnemyTowerHealthData.pkl")
-        print(len(training_data))
-
-    def mass_fit_enemy_princess_towers(self):
-        env.save_current_frame()
-        images = []
-        while True:
-            x = input("take photo?:")
-            if x == 'no':
-                break
-            images.append(np.asarray(env.get_left_enemy_tower_image(env.get_frame())))
-            images.append(np.asarray(env.get_right_enemy_tower_image(env.get_frame())))
-
-        for image in images:
-            cv2.imshow('fff', np.array(image))
-            cv2.waitKey(0)
-            x = int(input('enter health:'))
-            image = image.reshape((1, 4, 51, 3))
-            env.fit_enemy_princess_tower_model(image, np.array([x]))
-
-
-if __name__ == '__main__':
-    env = ClashRoyaleHandler()
-
-    print(len(env.gen_choice_data(env.get_frame())))
-    #print(env.get_window_dimensions()) #good window dimensions - (5, 48, 543, 997) or 538x949
-    # env.start_training_game()
-    # env.leave_game()
-    # print(env.training_game_over())
-    # print(env.determine_winner())
-    # print(env.get_player_crowns())
-    # print(env.get_enemy_crowns())
-    # print(env.determine_winner())
-    # print(len(env.gen_choice_data(env.get_frame())))
-    # print(env.determine_winner())
-    # print(env.get_player_crowns())
-    # print(env.game_is_over())
-    # print(env.check_reward_limit_reached())
-    # print(env.check_for_new_reward())
-    # print(env.training_game_over())
-    # print(env.get_enemy_crowns())
-    # print(env.get_player_crowns())
-    # env.elixir_model_mass_fitting()
-    # print(env.determine_winner())  355x617 - 1:1.73
-    # print(env.get_window_dimensions()) # 590x1080 - 1:1.75
-    # print(env.gen_tower_data(env.get_frame())) # 244x419 1:1.72
-    # print(env.predict_elixir(env.get_frame()))
-    # print(len(env.gen_choice_data(env.get_frame())))
