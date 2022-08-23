@@ -2,17 +2,23 @@ import numpy as np
 import tensorflow as tf
 from keras.models import Model
 from keras.layers import Conv2D, Dense, concatenate, Flatten
+from ClashRoyaleHandler import ClashRoyaleHandler
 
 
 class BattleModel(Model):
     """A model for Clash Royale battles"""
     def __init__(self):
         super(BattleModel, self).__init__()
+        self.build_layers()
 
+    def build_autoencoder(self):
+        pass
+
+    def build_layers(self):
         initializer = tf.keras.initializers.HeNormal()
-        
+
         self.elixir_1 = Flatten(name="Elixir_layer_1-Flatten")
-        self.elixir_2 = Dense(32, activation="relu", name="Elixir_layer_2-Dense", kernel_initializer=initializer)
+        self.elixir_2 = Dense(64, activation="relu", name="Elixir_layer_2-Dense", kernel_initializer=initializer)
 
         # Cards
         self.card_1 = Dense(9, activation="relu", name="Card_layer_1-Dense", kernel_initializer=initializer)
@@ -24,23 +30,21 @@ class BattleModel(Model):
         self.field_player_2 = Conv2D(32, 3, strides=2, padding="same", activation="relu", name="Field_player_layer_2-Conv2D", kernel_initializer=initializer)
         self.field_player_3 = Conv2D(64, 3, strides=2, padding="same", activation="relu", name="Field_player_layer_3-Conv2D", kernel_initializer=initializer)
         self.field_player_4 = Flatten(name="Field_player_layer_4-Flatten")
-        self.field_player_5 = Dense(256, activation="relu", name="Field_player_layer_5-Dense", kernel_initializer=initializer)
-        self.field_player_6 = Dense(128, activation="relu", name="Field_player_layer_6-Dense", kernel_initializer=initializer)
+        self.field_player_5 = Dense(128, activation="relu", name="Field_player_layer_5-Dense", kernel_initializer=initializer)
 
         self.field_enemy_1 = Conv2D(32, 5, strides=4, padding="same", activation="relu", name="Field_enemy_layer_1-Conv2D", kernel_initializer=initializer)
         self.field_enemy_2 = Conv2D(32, 3, strides=2, padding="same", activation="relu", name="Field_enemy_layer_2-Conv2D", kernel_initializer=initializer)
         self.field_enemy_3 = Conv2D(64, 3, strides=2, padding="same", activation="relu", name="Field_enemy_layer_3-Conv2D", kernel_initializer=initializer)
         self.field_enemy_4 = Flatten(name="Field_enemy_layer_4-Flatten")
-        self.field_enemy_5 = Dense(256, activation="relu", name="Field_enemy_layer_5-Dense", kernel_initializer=initializer)
-        self.field_enemy_6 = Dense(128, activation="relu", name="Field_enemy_layer_6-Dense", kernel_initializer=initializer)
+        self.field_enemy_5 = Dense(128, activation="relu", name="Field_enemy_layer_5-Dense", kernel_initializer=initializer)
 
         self.field_left_1 = Conv2D(16, 5, strides=2, padding="same", activation="relu", kernel_initializer=initializer)
         self.field_left_2 = Flatten(name="Field_left_layer_5-Flatten")
-        self.field_left_3 = Dense(64, activation="relu", name="Field_left_layer_6-Dense", kernel_initializer=initializer)
+        self.field_left_3 = Dense(32, activation="relu", name="Field_left_layer_6-Dense", kernel_initializer=initializer)
 
         self.field_right_1 = Conv2D(16, 5, strides=2, padding="same", activation="relu", kernel_initializer=initializer)
         self.field_right_2 = Flatten(name="Field_right_layer_5-Flatten")
-        self.field_right_3 = Dense(64, activation="relu", name="Field_right_layer_6-Dense", kernel_initializer=initializer)
+        self.field_right_3 = Dense(32, activation="relu", name="Field_right_layer_6-Dense", kernel_initializer=initializer)
 
         # combined
         self.combined_1 = Dense(1024, activation="relu", name="Combined_factors_layer_1-Dense", kernel_initializer=initializer)
@@ -96,14 +100,12 @@ class BattleModel(Model):
         field_p_x = self.field_player_3(field_p_x)
         field_p_x = self.field_player_4(field_p_x)
         field_p_x = self.field_player_5(field_p_x)
-        field_p_x = self.field_player_6(field_p_x)
 
         field_e_x = self.field_enemy_1(field_e_in)
         field_e_x = self.field_enemy_2(field_e_x)
         field_e_x = self.field_enemy_3(field_e_x)
         field_e_x = self.field_enemy_4(field_e_x)
         field_e_x = self.field_enemy_5(field_e_x)
-        field_e_x = self.field_enemy_6(field_e_x)
 
         field_l_x = self.field_left_1(field_l_in)
         field_l_x = self.field_left_2(field_l_x)
@@ -150,7 +152,6 @@ class BattleModel(Model):
     
     def normalize_target(self, target):
         """normalizes the target between 0 and 1"""
-        target -= 115.0
         return target
 
     def format_data(self, state_data):
@@ -163,7 +164,6 @@ class BattleModel(Model):
             return data
 
         def reshape_field_data(state_data, data):
-            
             player_side = np.array(state_data["field_data"]["player_side_dimensions"], dtype=np.float32).reshape((1, 132, 206, 1))
             player_side = self.normalize_img(player_side)
             enemy_side = np.array(state_data["field_data"]["enemy_side_dimensions"], dtype=np.float32).reshape((1, 128, 206, 1))
@@ -172,19 +172,19 @@ class BattleModel(Model):
             left_side = self.normalize_img(left_side)
             right_side = np.array(state_data["field_data"]["right_bridge_dimensions"], dtype=np.float32).reshape((1, 24, 18, 1))
             right_side = self.normalize_img(right_side)
-            
-            
-            
-
             data.extend([player_side, enemy_side, left_side, right_side])
             return data
 
         data = []
         data.append(np.array(float(state_data["elixir_data"])).reshape((1)))
         data = reshape_choice_data(state_data, data)
-        data = reshape_field_data(state_data, data)
-
-        
+        data = reshape_field_data(state_data, data) 
         return data
 
 
+if __name__ == "__main__":
+    model = BattleModel()
+    env = ClashRoyaleHandler()
+    state = env.get_state()
+    model.predict(state)
+    model.summary()
