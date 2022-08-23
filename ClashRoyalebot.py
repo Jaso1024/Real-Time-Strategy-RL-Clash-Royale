@@ -51,7 +51,7 @@ class ClashRoyaleBot:
             return total_reward
         else:
             if action_active:
-                return 0.5
+                return 1.0
             else:
                 return 0.0
 
@@ -67,7 +67,7 @@ class ClashRoyaleBot:
         """
         assert isinstance(agent, BattleAgent)
         assert isinstance(env, ClashRoyaleHandler)
-        action, action_active = agent.act(env, state)
+        action, action_active, remembered = agent.act(env, state)
 
         if duration < 15:
             done = False
@@ -77,7 +77,7 @@ class ClashRoyaleBot:
         else:
             done = env.game_is_over()
 
-        return env.get_state(), self.get_reward(env, duration, done, action_active), done, action, action_active
+        return env.get_state(), self.get_reward(env, duration, done, action_active), done, action, action_active, remembered
 
     def record_episode(self, result, epsilon):
         """Record the episode to be plotted later."""
@@ -116,17 +116,17 @@ class ClashRoyaleBot:
 
     def checkpoint_model(self, agent):
         """Checkpoint the model for loading later."""
-        checkpoint_num = len(os.listdir("Resources/Models/Saved/BattleModelT6Checkpoints")) + 1
-        os.mkdir(f"Resources/Models/Saved/BattleModelT6Checkpoints/Checkpoint{checkpoint_num}")
+        checkpoint_num = len(os.listdir("Resources/Models/Saved/BattleModelT1Checkpoints")) + 1
+        os.mkdir(f"Resources/Models/Saved/BattleModelT1Checkpoints/Checkpoint{checkpoint_num}")
         agent.battle_model.save_weights(
-            f"Resources/Models/Saved/BattleModelT6Checkpoints/Checkpoint{checkpoint_num}/checkpoint{checkpoint_num}",
+            f"Resources/Models/Saved/BattleModelT1Checkpoints/Checkpoint{checkpoint_num}/checkpoint{checkpoint_num}",
             save_format="tf")
 
-    def print_episode_stats(self, ep_num, duration, epsilon, actions, active_actions, reward, rewards):
+    def print_episode_stats(self, ep_num, duration, epsilon, actions, active_actions, reward, rewards, trainsteps):
         """Print episode stats."""
         print(
-            f"Episode: {ep_num} | Episode duration: {duration} | Epsilon: {epsilon} | Actions chosen: {actions} | Active Actions: {active_actions} | Reward: {reward} | Max Reward: {max(rewards)}")
-        print("-------------------------------------------------------------------------------------------------------")
+            f"Episode: {ep_num} | Episode duration: {duration} | Epsilon: {epsilon} | Actions chosen: {actions} | Active Actions: {active_actions} | Reward: {reward} | Max Reward: {max(rewards)} | Trainsteps:{trainsteps}")
+        print("-------------------------------------------------------------------------------------------------------------------------------")
 
     def run_episode(self, agent, env, learn=True):
         """Runs a single episode."""
@@ -142,13 +142,13 @@ class ClashRoyaleBot:
         self.start_battle(env)
 
         state = env.get_state()
-
+        trainsteps = 0
         episode_start_time = time.time()
         while not done:
             duration = time.time() - episode_start_time
 
-            new_state, reward, done, action, action_active = self.step(agent, env, state, duration)
-
+            new_state, reward, done, action, action_active, remembered = self.step(agent, env, state, duration)
+            
             total_reward += reward
             total_actions += 1
             rewards.append(reward)
@@ -159,10 +159,13 @@ class ClashRoyaleBot:
             if learn:
                 agent.experience(state, action, new_state, reward, done)
 
+            if remembered:
+                trainsteps += 5
+
             state = new_state
 
         self.leave_game(env)
-        return duration, active_actions, total_actions, total_reward, rewards
+        return duration, active_actions, total_actions, total_reward, rewards, trainsteps
 
     def play(self, episodes=300, learn=True, spells=False, epsilon=0.5, decay=.9995, checkpoint=100, remembrance_steps=320, target_episodes=5, scatter=False, load=True):
         """
@@ -188,7 +191,7 @@ class ClashRoyaleBot:
             agent = BattleAgent(epsilon=0.0, load=load)
 
         for ep in range(1, episodes + 1):
-            duration, active_actions, total_actions, total_reward, rewards = self.run_episode(agent, env, learn)
+            duration, active_actions, total_actions, total_reward, rewards, trainsteps = self.run_episode(agent, env, learn)
             agent.forget()
             if ep % checkpoint == 0:
                 try:
@@ -199,13 +202,11 @@ class ClashRoyaleBot:
                 agent.save()
 
             if self.print_stats:
-                self.print_episode_stats(ep, duration, agent.epsilon, total_actions, active_actions, total_reward, rewards)
+                self.print_episode_stats(ep, duration, agent.epsilon, total_actions, active_actions, total_reward, rewards, trainsteps)
             if self.record_stats:
                 self.record_episode(total_reward, agent.epsilon)
             agent.update_epsilon()
-            start_time = time.time()
             agent.remember(remembrance_steps)
-            print(time.time()-start_time)
 
             if ep > 1 and ep % target_episodes == 0:
                 agent.update_target()
@@ -215,4 +216,4 @@ class ClashRoyaleBot:
 
 if __name__ == "__main__":
     bot = ClashRoyaleBot()
-    bot.play(2000, epsilon=.53382, decay=0.9995, scatter=True, load=False)
+    bot.play(2000, epsilon=.0040, decay=0.9995, scatter=True, load=True, checkpoint=25, target_episodes=1)
