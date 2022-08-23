@@ -14,15 +14,16 @@ class BattleAgent:
     def __init__(self, gamma=.95, epsilon=0.5, decay=0.95, min_epsilon=0.01, lr=0.001, load=True):
         self.battle_model = BattleModel()
         self.target_model = BattleModel()
-
-        if load:
-            checkpoint_num = len(os.listdir("Resources/Models/Saved/BattleModelT6Checkpoints"))
-            checkpoint_location = f"Resources/Models/Saved/BattleModelT6Checkpoints/Checkpoint{checkpoint_num}/checkpoint{checkpoint_num}"
-            self.battle_model.load_weights(checkpoint_location)
-
-        self.battle_model.compile(optimizer=Adam(learning_rate=lr), loss="mse")
-        self.target_model.compile(optimizer=Adam(learning_rate=lr), loss="mse")
         self.memory = ReplayBuffer()
+        if load:
+            checkpoint_num = len(os.listdir("Resources/Models/Saved/BattleModelT1Checkpoints"))
+            checkpoint_location = f"Resources/Models/Saved/BattleModelT1Checkpoints/Checkpoint{checkpoint_num}/checkpoint{checkpoint_num}"
+            self.battle_model.load_weights(checkpoint_location)
+            self.memory = ReplayBuffer(load=True)
+
+        self.battle_model.compile(optimizer="adam", loss="mse")
+        self.target_model.compile(optimizer="adam", loss="mse")
+        
         self.min_epsilon = min_epsilon
         self.epsilon_decay = decay
         self.epsilon = epsilon
@@ -42,13 +43,15 @@ class BattleAgent:
         else:
             prediction = self.battle_model.advantage(state)[0]
             action = np.argmax(prediction)
-
+        remembered = False
+        if all(choices[choice]==None for choice in range(1,len(choices))):
+            self.remember(5)
+            remembered = True
         env.act(choices[action])
-
         if choices[action] is None:
-            return action, False
+            return action, False, remembered
         else:
-            return action, True
+            return action, True, remembered
 
     def update_target(self):
         """Updates target network."""
