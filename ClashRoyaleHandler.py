@@ -155,7 +155,7 @@ class ClashRoyaleHandler:
         :return: None
         """
         self.scalars = self.get_window_scalars()
-        if choice is None:
+        if choice is None or choice is True:
             return
 
         key_mappings = {1: "a", 2: "s", 3: "d", 4: "f"}
@@ -165,7 +165,10 @@ class ClashRoyaleHandler:
         kb.press(card_key)
         time.sleep(0.01)
         kb.release(card_key)
-        ui.click(location)
+        try:
+            ui.click(location)
+        except Exception as e:
+            print("Please stop moving the mouse", e)
         ui.click(self.top_right[0] + 5, self.top_right[1] + 5)
 
     def leave_game(self):
@@ -480,7 +483,7 @@ class ClashRoyaleHandler:
 
         # 1tile - 24x20px
         screen_tile_size = (11 * self.scalars[0], 8 * self.scalars[1])
-        choice_data = [None, ]
+        choice_data = [True, ]
         card_choices = self.get_cards(frame)
         for x in range(0, 18):
             for y in range(0, 14):
@@ -567,6 +570,7 @@ class ClashRoyaleHandler:
             in os.listdir("Resources/Cards")]
 
         playable_cards = []
+        valids = []
         identity = np.identity(9)
         for num in range(1, 5):
             card = cards[num - 1]
@@ -575,13 +579,16 @@ class ClashRoyaleHandler:
             added = False
             for c_num in range(len(card_images)):
                 cc = card_images[c_num]
-                matches = cv2.matchTemplate(card / 255, cc / 255, cv2.TM_CCOEFF_NORMED)
+                matches = cv2.matchTemplate(card[4:-3,4:-3] / 255, cc / 255, cv2.TM_CCOEFF_NORMED)
                 _, m, _, _ = cv2.minMaxLoc(matches)
                 if m > 0.7:
                     playable_cards.append([num, identity[c_num + 1:c_num + 2]])
+                    valids.append(1)
                     added = True
             if not added:
                 playable_cards.append([num, identity[0]])
-
+        
         return playable_cards
+
+
 
