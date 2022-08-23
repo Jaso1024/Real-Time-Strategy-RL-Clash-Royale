@@ -7,27 +7,27 @@ import pandas as pd
 class ReplayBuffer:
     """A Combined Replay Buffer with priorities."""
 
-    def __init__(self, load=False):
-        self.memory = deque()
-        self.recents = deque()
-        self.length = 10000
-        self.losses = deque()
+    def __init__(self, load=True, prioritizsed=False):
+        self.prioritized=prioritizsed
+        self.memory = deque(maxlen=20000)
+        self.length = 20000
+        self.losses = deque(maxlen=20000)
         self.memoryframe = pd.DataFrame({"state": [], "action": [], "state_": [], "reward": [], "done": []})
         
         if load:
             mem1 = pd.read_pickle("Resources/Memories/mem1.pkl")
             mem2 = pd.read_pickle("Resources/Memories/mem2.pkl")
             mem3 = pd.read_pickle("Resources/Memories/mem3.pkl")
-            self.memoryframe = pd.concat([mem1, mem2, mem3])
-            for entry in self.memoryframe.values.tolist():
-                self.memory.appendleft(entry)
+            for memsave in (mem1, mem2, mem3):
+                for entry in memsave.values.tolist():
+                    self.memory.appendleft(entry)
             self.losses = deque(list(np.genfromtxt("Resources/memories/losses.csv", delimiter=',')))
+            print("Replay buffer length:",len(self.memory))
 
     def add(self, experience, loss):
         """Adds an experience to a replay buffer."""
         self.memory.appendleft(experience)
         self.losses.appendleft(loss)
-        self.recents.appendleft(experience)
 
     def save(self):
         """Saves all experiences in the replay buffer to csv files."""
@@ -47,13 +47,13 @@ class ReplayBuffer:
 
         frame_to_save = pd.DataFrame({"state": states, "action": actions, "state_": states, "reward": rewards, "done": dones})
         self.split_save(frame_to_save)
+        np.savetxt("Resources/memories/losses.csv", self.losses, delimiter=",")
 
     def split_save(self, frame):
         """Split dataframe into 3, then save individually"""
         frame_length = len(frame)
         frame.iloc[:int(frame_length / 3)].to_pickle("Resources/Memories/mem1.pkl")
-        frame.iloc[int(frame_length / 3):int(((frame_length / 3) + (frame_length / 3)))].to_pickle(
-            "Resources/Memories/mem2.pkl")
+        frame.iloc[int(frame_length / 3):int(((frame_length / 3) + (frame_length / 3)))].to_pickle("Resources/Memories/mem2.pkl")
         frame.iloc[int(((frame_length / 3) + (frame_length / 3))):].to_pickle("Resources/Memories/mem3.pkl")
 
     def sample(self, batch_size=5):
@@ -65,8 +65,11 @@ class ReplayBuffer:
         """
         losses = np.array(self.losses)
         priorities = losses / max(losses)
-        sample_indicies = random.choices(range(len(self.memory)), k=batch_size - 1, cum_weights=priorities)
-
+        if self.prioritized:
+            sample_indicies = random.choices(range(len(self.memory)), k=batch_size - 1, cum_weights=priorities)
+        else:
+            sample_indicies = random.choices(range(len(self.memory)), k=batch_size - 1)
+        
         for idx in sample_indicies:
             experience = self.memory[idx][:]
             del self.memory[idx]
