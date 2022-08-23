@@ -11,9 +11,6 @@ class BattleModel(Model):
         super(BattleModel, self).__init__()
         self.build_layers()
 
-    def build_autoencoder(self):
-        pass
-
     def build_layers(self):
         initializer = tf.keras.initializers.HeNormal()
 
