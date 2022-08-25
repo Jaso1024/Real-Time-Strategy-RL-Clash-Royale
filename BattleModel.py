@@ -65,9 +65,11 @@ class BattleModel(Model):
         self.state_val = Dense(1, activation="linear", kernel_initializer=initializer)
         
         # Advantage value
-        self.origin_squares = Dense(48, activation=None, kernel_initializer=initializer)
-        self.advantage_1 = LeakyReLU(0.2)
-        self.advantage_2 = Dense(9)
+        self.origin_squares_1 = Dense(48, activation=None, kernel_initializer=initializer)
+        self.origin_squares_2 = LeakyReLU(0.2)
+        self.advantage_1 = Dense(48)
+        self.advantage_2 = LeakyReLU(0.4)
+        self.advantage_3 = Dense(9)
         self.advantage_val = LeakyReLU(0.4)
 
 
@@ -173,12 +175,16 @@ class BattleModel(Model):
         :return: a (tf.tensor): A tensor containing the values of each action
         """
         elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in = self.format_data(inputs)
-        a = self.call_combined(elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in)
-        a = self.origin_squares(a)
+        x = self.call_combined(elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in)
+        o = self.origin_squares_1(x)
+        o = self.origin_squares_2(o)
+        o = np.argmax(o)
+        a = np.identity(48)[a:a+1]
         a = self.advantage_1(a)
         a = self.advantage_2(a)
+        a = self.advantage_3(a)
         a = self.advantage_val(a)
-        return a
+        return a, o
     
     def normalize_img(self, img):
         """Normalize the given images values between 0 and 1"""
