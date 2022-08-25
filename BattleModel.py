@@ -1,7 +1,8 @@
 import numpy as np
 import tensorflow as tf
 from keras.models import Model
-from keras.layers import Conv2D, Dense, concatenate, Flatten
+from keras.layers import Conv2D, Dense, concatenate, Flatten, LeakyReLU, BatchNormalization
+from keras.activations import *
 from ClashRoyaleHandler import ClashRoyaleHandler
 
 
@@ -23,35 +24,53 @@ class BattleModel(Model):
         self.card_3 = Dense(128, activation='relu', name="Card_layer_3-Dense", kernel_initializer=initializer)
 
         # field
-        self.field_player_1 = Conv2D(32, 5, strides=4, padding="same", activation="relu", name="Field_player_layer_1-Conv2D", kernel_initializer=initializer)
-        self.field_player_2 = Conv2D(32, 3, strides=2, padding="same", activation="relu", name="Field_player_layer_2-Conv2D", kernel_initializer=initializer)
-        self.field_player_3 = Conv2D(64, 3, strides=2, padding="same", activation="relu", name="Field_player_layer_3-Conv2D", kernel_initializer=initializer)
-        self.field_player_4 = Flatten(name="Field_player_layer_4-Flatten")
-        self.field_player_5 = Dense(128, activation="relu", name="Field_player_layer_5-Dense", kernel_initializer=initializer)
+        self.field_player_1 = Conv2D(256, 5, padding="same", activation=None, name="Field_player_layer_1-Conv2D", kernel_initializer=initializer)
+        self.field_player_2 = BatchNormalization()
+        self.field_player_3 = LeakyReLU(0.2)
+        self.field_player_4 = Conv2D(64, 3, strides=2, padding="same", activation=None, name="Field_player_layer_2-Conv2D", kernel_initializer=initializer)
+        self.field_player_5 = BatchNormalization()
+        self.field_player_6 = LeakyReLU(0.2)
+        self.field_player_7 = Conv2D(128, 3, strides=2, padding="same", activation=None, name="Field_player_layer_3-Conv2D", kernel_initializer=initializer)
+        self.field_player_8 = BatchNormalization()
+        self.field_player_9 = LeakyReLU(0.2)
+        self.field_player_10 = Conv2D(128, 3, strides=2, padding="same", activation=None, name="Field_player_layer_3-Conv2D", kernel_initializer=initializer)
+        self.field_player_11 = BatchNormalization()
+        self.field_player_12 = LeakyReLU(0.2)
+        self.field_player_13 = Flatten(name="Field_player_layer_4-Flatten")
 
-        self.field_enemy_1 = Conv2D(32, 5, strides=4, padding="same", activation="relu", name="Field_enemy_layer_1-Conv2D", kernel_initializer=initializer)
-        self.field_enemy_2 = Conv2D(32, 3, strides=2, padding="same", activation="relu", name="Field_enemy_layer_2-Conv2D", kernel_initializer=initializer)
-        self.field_enemy_3 = Conv2D(64, 3, strides=2, padding="same", activation="relu", name="Field_enemy_layer_3-Conv2D", kernel_initializer=initializer)
-        self.field_enemy_4 = Flatten(name="Field_enemy_layer_4-Flatten")
-        self.field_enemy_5 = Dense(128, activation="relu", name="Field_enemy_layer_5-Dense", kernel_initializer=initializer)
+        self.field_enemy_1 = Conv2D(256, 5, padding="same", activation=None, name="Field_player_layer_1-Conv2D", kernel_initializer=initializer)
+        self.field_enemy_2 = BatchNormalization()
+        self.field_enemy_3 = LeakyReLU(0.2)
+        self.field_enemy_4 = Conv2D(64, 3, strides=2, padding="same", activation=None, name="Field_enemy_layer_2-Conv2D", kernel_initializer=initializer)
+        self.field_enemy_5 = BatchNormalization()
+        self.field_enemy_6 = LeakyReLU(0.2)
+        self.field_enemy_7 = Conv2D(128, 3, strides=2, padding="same", activation=None, name="Field_enemy_layer_3-Conv2D", kernel_initializer=initializer)
+        self.field_enemy_8 = BatchNormalization()
+        self.field_enemy_9 = LeakyReLU(0.2)
+        self.field_enemy_10 = Conv2D(128, 3, strides=2, padding="same", activation=None, name="Field_enemy_layer_3-Conv2D", kernel_initializer=initializer)
+        self.field_enemy_11 = BatchNormalization()
+        self.field_enemy_12 = LeakyReLU(0.2)
+        self.field_enemy_13 = Flatten(name="Field_enemy_layer_4-Flatten")
 
-        self.field_left_1 = Conv2D(16, 5, strides=2, padding="same", activation="relu", kernel_initializer=initializer)
-        self.field_left_2 = Flatten(name="Field_left_layer_5-Flatten")
-        self.field_left_3 = Dense(32, activation="relu", name="Field_left_layer_6-Dense", kernel_initializer=initializer)
+        self.field_left_1 = Flatten(name="Field_left_layer_5-Flatten")
+        self.field_left_2 = Dense(32, activation="relu", name="Field_left_layer_6-Dense", kernel_initializer=initializer)
 
-        self.field_right_1 = Conv2D(16, 5, strides=2, padding="same", activation="relu", kernel_initializer=initializer)
-        self.field_right_2 = Flatten(name="Field_right_layer_5-Flatten")
-        self.field_right_3 = Dense(32, activation="relu", name="Field_right_layer_6-Dense", kernel_initializer=initializer)
+        self.field_right_1 = Flatten(name="Field_right_layer_5-Flatten")
+        self.field_right_2 = Dense(32, activation="relu", name="Field_right_layer_6-Dense", kernel_initializer=initializer)
 
         # combined
-        self.combined_1 = Dense(1024, activation="relu", name="Combined_factors_layer_1-Dense", kernel_initializer=initializer)
-        
+        self.combined_1 = Dense(2048, activation=None, name="Combined_factors_layer_1-Dense", kernel_initializer=initializer)
+        self.combined_2 = LeakyReLU(0.2)
         # State value
         self.state_val = Dense(1, activation="linear", kernel_initializer=initializer)
         
         # Advantage value
-        self.advantage_val = Dense(48, activation="linear", name="Output_layer", kernel_initializer=initializer)
-    
+        self.origin_squares = Dense(48, activation=None, kernel_initializer=initializer)
+        self.advantage_1 = LeakyReLU(0.2)
+        self.advantage_2 = Dense(9)
+        self.advantage_val = LeakyReLU(0.4)
+
+
     def predict(self, x, batch_size=None, verbose='auto', steps=None, callbacks=None, max_queue_size=10, workers=1, use_multiprocessing=False):
         x = self.format_data(x)
         return super().predict(x, batch_size, verbose, steps, callbacks, max_queue_size, workers, use_multiprocessing)
@@ -97,23 +116,38 @@ class BattleModel(Model):
         field_p_x = self.field_player_3(field_p_x)
         field_p_x = self.field_player_4(field_p_x)
         field_p_x = self.field_player_5(field_p_x)
+        field_p_x = self.field_player_6(field_p_x)
+        field_p_x = self.field_player_7(field_p_x)
+        field_p_x = self.field_player_8(field_p_x)
+        field_p_x = self.field_player_9(field_p_x)
+        field_p_x = self.field_player_10(field_p_x)
+        field_p_x = self.field_player_11(field_p_x)
+        field_p_x = self.field_player_12(field_p_x)
+        field_p_x = self.field_player_13(field_p_x)
 
         field_e_x = self.field_enemy_1(field_e_in)
         field_e_x = self.field_enemy_2(field_e_x)
         field_e_x = self.field_enemy_3(field_e_x)
         field_e_x = self.field_enemy_4(field_e_x)
         field_e_x = self.field_enemy_5(field_e_x)
+        field_e_x = self.field_enemy_6(field_e_x)
+        field_e_x = self.field_enemy_7(field_e_x)
+        field_e_x = self.field_enemy_8(field_e_x)
+        field_e_x = self.field_enemy_9(field_e_x)
+        field_e_x = self.field_enemy_10(field_e_x)
+        field_e_x = self.field_enemy_11(field_e_x)
+        field_e_x = self.field_enemy_12(field_e_x)
+        field_e_x = self.field_enemy_13(field_e_x)
 
         field_l_x = self.field_left_1(field_l_in)
         field_l_x = self.field_left_2(field_l_x)
-        field_l_x = self.field_left_3(field_l_x)
 
         field_r_x = self.field_left_1(field_r_in)
         field_r_x = self.field_left_2(field_r_x)
-        field_r_x = self.field_left_3(field_r_x)
 
         x = concatenate([elixir_x, card_1x, card_2x, card_3x, card_4x, field_p_x, field_e_x, field_l_x, field_r_x])
         x = self.combined_1(x)
+        x = self.combined_2(x)
 
         return x
 
@@ -139,8 +173,11 @@ class BattleModel(Model):
         :return: a (tf.tensor): A tensor containing the values of each action
         """
         elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in = self.format_data(inputs)
-        x = self.call_combined(elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in)
-        a = self.advantage_val(x)
+        a = self.call_combined(elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in)
+        a = self.origin_squares(a)
+        a = self.advantage_1(a)
+        a = self.advantage_2(a)
+        a = self.advantage_val(a)
         return a
     
     def normalize_img(self, img):
@@ -161,13 +198,13 @@ class BattleModel(Model):
             return data
 
         def reshape_field_data(state_data, data):
-            player_side = np.array(state_data["field_data"]["player_side_dimensions"], dtype=np.float32).reshape((1, 132, 206, 1))
+            player_side = np.array(state_data["field_data"]["player_side_dimensions"], dtype=np.float32).reshape((1, 33, 51, 1))
             player_side = self.normalize_img(player_side)
-            enemy_side = np.array(state_data["field_data"]["enemy_side_dimensions"], dtype=np.float32).reshape((1, 128, 206, 1))
+            enemy_side = np.array(state_data["field_data"]["enemy_side_dimensions"], dtype=np.float32).reshape((1, 32, 51, 1))
             enemy_side = self.normalize_img(enemy_side)
-            left_side = np.array(state_data["field_data"]["left_bridge_dimensions"], dtype=np.float32).reshape((1, 24, 18, 1))
+            left_side = np.array(state_data["field_data"]["left_bridge_dimensions"], dtype=np.float32).reshape((1, 6, 4, 1))
             left_side = self.normalize_img(left_side)
-            right_side = np.array(state_data["field_data"]["right_bridge_dimensions"], dtype=np.float32).reshape((1, 24, 18, 1))
+            right_side = np.array(state_data["field_data"]["right_bridge_dimensions"], dtype=np.float32).reshape((1, 6, 4, 1))
             right_side = self.normalize_img(right_side)
             data.extend([player_side, enemy_side, left_side, right_side])
             return data
