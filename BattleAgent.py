@@ -19,7 +19,7 @@ class BattleAgent:
             checkpoint_num = len(os.listdir("Resources/Models/Saved/BattleModelT1Checkpoints"))
             checkpoint_location = f"Resources/Models/Saved/BattleModelT1Checkpoints/Checkpoint{checkpoint_num}/checkpoint{checkpoint_num}"
             self.battle_model.load_weights(checkpoint_location)
-            self.memory = ReplayBuffer(load=True)
+            self.memory = ReplayBuffer(load=load)
 
         self.battle_model.compile(optimizer="adam", loss="mse")
         self.target_model.compile(optimizer="adam", loss="mse")
@@ -29,7 +29,10 @@ class BattleAgent:
         self.epsilon = epsilon
         self.gamma = gamma
     
-    def act(self, env, state):
+    def get_action():
+        pass
+    
+    def act(self, env, state, memories):
         """
         Executes an action.
 
@@ -41,12 +44,14 @@ class BattleAgent:
         if np.random.random() < self.epsilon:
             action = np.random.randint(low=0, high=len(choices))
         else:
-            prediction = self.battle_model.advantage(state)[0]
-            action = np.argmax(prediction)
-        remembered = False
-        if all(choices[choice]==None for choice in range(1,len(choices))):
-            self.remember(5)
+            adv_val, action_components = self.battle_model.advantage(state)[0]
+            action = self.get_action()
+
+        remembered = False 
+        if memories > 0:
+            self.remember(memories)
             remembered = True
+
         env.act(choices[action])
         if choices[action] is None:
             return action, False, remembered
