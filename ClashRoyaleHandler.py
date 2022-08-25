@@ -12,6 +12,7 @@ import win32gui
 from PIL import Image
 
 from Resources.Models.ElixirModel import ElixirModel
+from collections import OrderedDict
 
 
 class ClashRoyaleHandler:
@@ -450,16 +451,18 @@ class ClashRoyaleHandler:
         :return: field_data (dict): containing data about the field of the battle
         """
         full_image = np.asarray(cv2.cvtColor(np.asarray(frame), cv2.COLOR_BGR2GRAY))
-        field_dimensions = {
+        field_dimensions = OrderedDict({
             "enemy_side_dimensions": (20, 36, 226, 164),  # 206x128: 26,368px
             "left_bridge_dimensions": (50, 162, 68, 186),  # 18x24: 432px
             "right_bridge_dimensions": (175, 162, 193, 186),  # 18x24: 432px
             "player_side_dimensions": (20, 182, 226, 314),  # 206x132: 26,368px
-        }
+        })
 
         field_data = {}
-        for place, dimensions in field_dimensions.items():
+        field_shapes = [(206,128), (18,24), (18,24), (206,132)]
+        for (place, dimensions), shape in zip(field_dimensions.items(), field_shapes):
             image = np.asarray(Image.fromarray(full_image).crop(dimensions))
+            image = np.asarray(cv2.resize(image, (int(shape[0]/4), int(shape[1]/4))))
             field_data[place] = image
 
         return field_data
