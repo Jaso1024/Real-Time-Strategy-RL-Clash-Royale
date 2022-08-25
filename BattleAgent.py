@@ -29,9 +29,12 @@ class BattleAgent:
         self.epsilon = epsilon
         self.gamma = gamma
     
-    def get_action():
-        pass
+    def get_action(self, action_components, choices):
+        action_matrix = self.to_matrix(choices)
     
+    def to_matrix(self, choices):
+        pass
+
     def act(self, env, state, memories):
         """
         Executes an action.
@@ -44,8 +47,11 @@ class BattleAgent:
         if np.random.random() < self.epsilon:
             action = np.random.randint(low=0, high=len(choices))
         else:
-            adv_val, action_components = self.battle_model.advantage(state)[0]
-            action = self.get_action()
+            action_components = self.battle_model.advantage(state)[0]
+            if None in action_components:
+                action = action_components[0]
+            else:
+                action = self.get_action(action_components, choices)
 
         remembered = False 
         if memories > 0:

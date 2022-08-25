@@ -65,7 +65,13 @@ class BattleModel(Model):
         self.state_val = Dense(1, activation="linear", kernel_initializer=initializer)
         
         # Advantage value
-        self.origin_squares_1 = Dense(48, activation=None, kernel_initializer=initializer)
+        # Origin squares are squares with 8 other empty, viable tiles around it
+        # no origin square is within a 1-tile range of another
+        # reasoning: In clash royale the general location of a placement matters much more than the
+        # exact location, therefore by creating a system where an agents decisions are focused on
+        # general location than exact location, the agent will be able to produce better results
+
+        self.origin_squares_1 = Dense(49, activation=None, kernel_initializer=initializer)
         self.origin_squares_2 = LeakyReLU(0.2)
         self.tile_advantage_1 = Dense(48)
         self.tile_advantage_2 = LeakyReLU(0.4)
@@ -183,7 +189,6 @@ class BattleModel(Model):
         o = self.origin_squares_1(x)
         o = self.origin_squares_2(o)
         origin_choice = np.argmax(o)
-        origin_adv_val = o[origin_choice]
         
 
         t = np.identity(48)[origin_choice:origin_choice+1]
@@ -192,17 +197,16 @@ class BattleModel(Model):
         t = self.tile_advantage_3(t)
         t = self.tile_advantage_4(t)
         tile_choice = np.argmax(t)
-        tile_adv_val = t[tile_choice]
 
         c = self.card_advantage_1(x)
         c = self.card_advantage_2(c)
         card_choice = np.argmax(c)
-        card_adv_val = c[card_choice]
-
-        advantage_val = origin_adv_val + tile_adv_val + card_adv_val
 
         # value, action
-        return advantage_val, (origin_choice, tile_choice, card_choice)
+        if origin_choice != 0:
+            return origin_choice, tile_choice, card_choice
+        else:
+            return origin_choice, None, None
     
     def normalize_img(self, img):
         """Normalize the given images values between 0 and 1"""
