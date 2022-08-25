@@ -67,10 +67,14 @@ class BattleModel(Model):
         # Advantage value
         self.origin_squares_1 = Dense(48, activation=None, kernel_initializer=initializer)
         self.origin_squares_2 = LeakyReLU(0.2)
-        self.advantage_1 = Dense(48)
-        self.advantage_2 = LeakyReLU(0.4)
-        self.advantage_3 = Dense(9)
-        self.advantage_val = LeakyReLU(0.4)
+        self.tile_advantage_1 = Dense(48)
+        self.tile_advantage_2 = LeakyReLU(0.4)
+        self.tile_advantage_3 = Dense(9)
+        self.tile_advantage_4 = LeakyReLU(0.4)
+
+        # Card output
+        self.card_advantage_1 = Dense(4)
+        self.card_advantage_2 = LeakyReLU(0.4)
 
 
     def predict(self, x, batch_size=None, verbose='auto', steps=None, callbacks=None, max_queue_size=10, workers=1, use_multiprocessing=False):
@@ -178,13 +182,27 @@ class BattleModel(Model):
         x = self.call_combined(elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in)
         o = self.origin_squares_1(x)
         o = self.origin_squares_2(o)
-        o = np.argmax(o)
-        a = np.identity(48)[a:a+1]
-        a = self.advantage_1(a)
-        a = self.advantage_2(a)
-        a = self.advantage_3(a)
-        a = self.advantage_val(a)
-        return a, o
+        origin_choice = np.argmax(o)
+        origin_adv_val = o[origin_choice]
+        
+
+        t = np.identity(48)[origin_choice:origin_choice+1]
+        t = self.tile_advantage_1(t)
+        t = self.tile_advantage_2(t)
+        t = self.tile_advantage_3(t)
+        t = self.tile_advantage_4(t)
+        tile_choice = np.argmax(t)
+        tile_adv_val = t[tile_choice]
+
+        c = self.card_advantage_1(x)
+        c = self.card_advantage_2(c)
+        card_choice = np.argmax(c)
+        card_adv_val = c[card_choice]
+
+        advantage_val = origin_adv_val + tile_adv_val + card_adv_val
+
+        # value, action
+        return advantage_val, (origin_choice, tile_choice, card_choice)
     
     def normalize_img(self, img):
         """Normalize the given images values between 0 and 1"""

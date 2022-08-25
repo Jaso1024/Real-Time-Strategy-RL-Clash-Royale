@@ -55,7 +55,7 @@ class ClashRoyaleBot:
             else:
                 return 0.0
 
-    def step(self, agent, env, state, duration):
+    def step(self, agent, env, state, duration, memories_per_step):
         """
         Executes one action step in the environment.
 
@@ -67,7 +67,7 @@ class ClashRoyaleBot:
         """
         assert isinstance(agent, BattleAgent)
         assert isinstance(env, ClashRoyaleHandler)
-        action, action_active, remembered = agent.act(env, state)
+        action, action_active, remembered = agent.act(env, state, memories_per_step)
 
         if duration < 15:
             done = False
@@ -128,7 +128,7 @@ class ClashRoyaleBot:
             f"Episode: {ep_num} | Episode duration: {duration} | Epsilon: {epsilon} | Actions chosen: {actions} | Active Actions: {active_actions} | Reward: {reward} | Max Reward: {max(rewards)} | Trainsteps:{trainsteps}")
         print("-------------------------------------------------------------------------------------------------------------------------------")
 
-    def run_episode(self, agent, env, learn=True):
+    def run_episode(self, agent, env, learn=True, memories_per_step=0):
         """Runs a single episode."""
         done = False
         active_actions = 0
@@ -147,7 +147,7 @@ class ClashRoyaleBot:
         while not done:
             duration = time.time() - episode_start_time
 
-            new_state, reward, done, action, action_active, remembered = self.step(agent, env, state, duration)
+            new_state, reward, done, action, action_active, remembered = self.step(agent, env, state, duration, memories_per_step)
             
             total_reward += reward
             total_actions += 1
@@ -160,7 +160,7 @@ class ClashRoyaleBot:
                 agent.experience(state, action, new_state, reward, done)
 
             if remembered:
-                trainsteps += 5
+                trainsteps += memories_per_step
 
             state = new_state
 
