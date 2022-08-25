@@ -50,7 +50,7 @@ class BattleModel(Model):
         self.state_val = Dense(1, activation="linear", kernel_initializer=initializer)
         
         # Advantage value
-        self.advantage_val = Dense(1009, activation="linear", name="Output_layer", kernel_initializer=initializer)
+        self.advantage_val = Dense(48, activation="linear", name="Output_layer", kernel_initializer=initializer)
     
     def predict(self, x, batch_size=None, verbose='auto', steps=None, callbacks=None, max_queue_size=10, workers=1, use_multiprocessing=False):
         x = self.format_data(x)
