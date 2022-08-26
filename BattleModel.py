@@ -3,6 +3,7 @@ import tensorflow as tf
 from keras.models import Model
 from keras.layers import Conv2D, Dense, concatenate, Flatten, LeakyReLU, BatchNormalization
 from keras.activations import *
+from keras import backend as K
 from ClashRoyaleHandler import ClashRoyaleHandler
 
 
@@ -73,6 +74,7 @@ class BattleModel(Model):
 
         self.origin_squares_1 = Dense(49, activation=None, kernel_initializer=initializer)
         self.origin_squares_2 = LeakyReLU(0.2)
+
         self.tile_advantage_1 = Dense(48)
         self.tile_advantage_2 = LeakyReLU(0.4)
         self.tile_advantage_3 = Dense(9)
@@ -173,9 +175,28 @@ class BattleModel(Model):
         elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in = inputs
         x = self.call_combined(elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in)
         s = self.state_val(x)
-        a = self.advantage_val(x)
-        q = s + (a - tf.math.reduce_mean(a, axis=1, keepdims=True))
+        a = self.get_advantage_val(x)
+        q = s + a 
         return q
+
+    def get_advantage_val(self, x):
+        o = self.origin_squares_1(x)
+        o = self.origin_squares_2(o)
+        origin_val = tf.get_static_value(tf.math.argmax(o, axis=1))
+        
+
+        t = np.identity(48)[origin_choice:origin_choice+1]
+        t = self.tile_advantage_1(t)
+        t = self.tile_advantage_2(t)
+        t = self.tile_advantage_3(t)
+        t = self.tile_advantage_4(t)
+        tile_val = tf.get_static_value(tf.math.argmax(t, axis=1))
+
+        c = self.card_advantage_1(x)
+        c = self.card_advantage_2(c)
+        card_val = tf.get_static_value(tf.math.argmax(c, axis=1))
+        
+        return origin_val + tile_val + card_val
 
     def advantage(self, inputs):
         """
@@ -188,7 +209,7 @@ class BattleModel(Model):
         x = self.call_combined(elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in)
         o = self.origin_squares_1(x)
         o = self.origin_squares_2(o)
-        origin_choice = np.argmax(o)
+        origin_choice = tf.get_static_value(tf.math.argmax(o, axis=1))
         
 
         t = np.identity(48)[origin_choice:origin_choice+1]
@@ -196,11 +217,11 @@ class BattleModel(Model):
         t = self.tile_advantage_2(t)
         t = self.tile_advantage_3(t)
         t = self.tile_advantage_4(t)
-        tile_choice = np.argmax(t)
+        tile_choice = tf.get_static_value(tf.math.argmax(t, axis=1))
 
         c = self.card_advantage_1(x)
         c = self.card_advantage_2(c)
-        card_choice = np.argmax(c)
+        card_choice = tf.get_static_value(tf.math.argmax(c, axis=1))
 
         # value, action
         if origin_choice != 0:
