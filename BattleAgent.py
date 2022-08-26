@@ -1,4 +1,3 @@
-from subprocess import call
 import numpy as np
 from BattleModel import BattleModel
 from ReplayBuffer import ReplayBuffer
@@ -7,11 +6,13 @@ import tensorflow as tf
 import os
 from keras.callbacks import History 
 
+from ClashRoyaleHandler import ClashRoyaleHandler
+
 
 
 class BattleAgent:
     """A Double Dueling Deep-Q-Learning Agent with a Prioritized Replay Buffer"""
-    def __init__(self, gamma=.95, epsilon=0.5, decay=0.95, min_epsilon=0.01, lr=0.001, load=True):
+    def __init__(self, gamma=.95, epsilon=0.5, decay=0.95, min_epsilon=0.01, lr=0.001, load=False):
         self.battle_model = BattleModel()
         self.target_model = BattleModel()
         self.memory = ReplayBuffer()
@@ -28,12 +29,58 @@ class BattleAgent:
         self.epsilon_decay = decay
         self.epsilon = epsilon
         self.gamma = gamma
+        self.origin_square_locations = self.get_origin_square_locations()
     
-    def get_action(self, action_components, choices):
-        action_matrix = self.to_matrix(choices)
+    def get_origin_square_locations(self):
+        locations = []
+        for x in range(1, 18-1, 2):
+            for y in range(1, 14-1, 2):
+                locations.append((x,y))
+        return locations
     
+    def get_tile(self, tile_of_nine):
+        tile_mappings = {1:(-1,-1), 2:(-1,0), 3:(-1,1),
+                         4:(0,-1), 5:(0,0), 6:(0,1),
+                         7:(1,-1), 8:(1,0), 9:(1,1)}
+        return tile_mappings[tile_of_nine]
+
+    def make_action(self, tile, card):
+        if type(tile) == dict:
+            action = {}
+            for key, value in tile.items():
+                if key == 'card':
+                    continue
+                else:
+                    action[key] = value
+            action['card'] = card
+        else:
+            action = tile
+        return action
+    
+    def get_action(self, action_components, choices, card_data):
+        action = {}
+        origin_squares_data = []
+        tile_matrix = self.to_matrix(choices)
+        for x, y in self.origin_square_locations:
+            origin_squares_data.append([x, y])
+        origin_tile_location = origin_squares_data[action_components[0]]
+        tile_component = action_components[1]
+        tile_component = self.get_tile(tile_component)
+        tile_location = (origin_tile_location[0] + tile_component[0], origin_tile_location[1] + tile_component[1])
+        tile = tile_matrix[tile_location]
+        action = self.make_action(tile, card_data[action_components[2]])
+        return action
+        
     def to_matrix(self, choices):
-        pass
+        current_idx = 0
+        choice_matrix = []
+        for x in range(18):
+            choice_vector = []
+            for y in range(14):
+                choice_vector.append(choices[current_idx])
+                current_idx += 4
+            choice_matrix.append(choice_vector)
+        return np.array(choice_matrix)
 
     def act(self, env, state, memories):
         """
@@ -47,11 +94,11 @@ class BattleAgent:
         if np.random.random() < self.epsilon:
             action = np.random.randint(low=0, high=len(choices))
         else:
-            action_components = self.battle_model.advantage(state)[0]
+            action_components = self.battle_model.advantage(state)
             if None in action_components:
                 action = action_components[0]
             else:
-                action = self.get_action(action_components, choices)
+                action = self.get_action(action_components, choices, state['card_data'])
 
         remembered = False 
         if memories > 0:
@@ -111,6 +158,7 @@ class BattleAgent:
         return history.history['loss'][0]
 
 if __name__ == "__main__":
-    agent = BattleAgent(load=True)
-    agent.remember(180)
-    agent.save()
+    agent = BattleAgent()
+    env = ClashRoyaleHandler()
+    state = env.get_state()
+    agent.act(env, state, memories=0)
