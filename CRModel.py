@@ -5,7 +5,7 @@ from keras.models import Model
 from keras.layers import Conv2D, Dense, concatenate, Flatten, LeakyReLU, BatchNormalization
 from keras.activations import *
 from keras import backend as K
-from ClashRoyaleHandler import ClashRoyaleHandler
+from Handler import Handler
 
 
 class StateEncoder(Model):
