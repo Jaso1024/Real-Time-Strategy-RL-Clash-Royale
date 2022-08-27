@@ -138,7 +138,26 @@ class Actor(BattleModel, Model):
         x = BattleModel.format_data(x)
         return super().fit(x, y, batch_size, epochs, verbose, callbacks, validation_split, validation_data, shuffle, class_weight, sample_weight, initial_epoch, steps_per_epoch, validation_steps, validation_batch_size, validation_freq, max_queue_size, workers, use_multiprocessing)
 
+class Critic(BattleModel, Model):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.c1 = Dense(1, activation=None)
+        self.c2 = LeakyReLU(0.2)
+    
+    def call(self, inputs):
+        x = BattleModel.call_fc_layers(inputs)
+        v = self.c1(x)
+        v = self.c2(v)
+        return v
 
+    def predict(self, x, batch_size=None, verbose='auto', steps=None, callbacks=None, max_queue_size=10, workers=1, use_multiprocessing=False):
+        x = BattleModel.format_data(x)
+        return super().predict(x, batch_size, verbose, steps, callbacks, max_queue_size, workers, use_multiprocessing)
+    
+    def fit(self, x=None, y=None, batch_size=None, epochs=1, verbose='auto', callbacks=None, validation_split=0, validation_data=None, shuffle=True, class_weight=None, sample_weight=None, initial_epoch=0, steps_per_epoch=None, validation_steps=None, validation_batch_size=None, validation_freq=1, max_queue_size=10, workers=1, use_multiprocessing=False):
+        x = BattleModel.format_data(x)
+        return super().fit(x, y, batch_size, epochs, verbose, callbacks, validation_split, validation_data, shuffle, class_weight, sample_weight, initial_epoch, steps_per_epoch, validation_steps, validation_batch_size, validation_freq, max_queue_size, workers, use_multiprocessing)
+    
 class OriginModel(Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
