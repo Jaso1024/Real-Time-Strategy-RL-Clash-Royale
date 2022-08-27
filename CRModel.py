@@ -108,3 +108,15 @@ class BattleModel(Model):
         """Normalize the given images values between 0 and 1"""
         return img/255
 
+
+class OriginModel(Model):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.origin_squares_1 = Dense(49, activation=None)
+        self.origin_squares_2 = LeakyReLU(0.2)
+    
+    def call(self, inp):
+        x = self.origin_squares_1(inp)
+        x = self.origin_squares_2(x)
+        return x
+
