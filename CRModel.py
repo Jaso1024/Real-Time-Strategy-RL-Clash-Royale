@@ -108,6 +108,36 @@ class BattleModel(Model):
         """Normalize the given images values between 0 and 1"""
         return img/255
 
+class Actor(BattleModel, Model):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.origin_model = OriginModel()
+
+        self.tile_1 = Dense(48, activation="relu")
+        self.tile_2 = Dense(9, activation="softmax")
+
+        self.card_1 = Dense(4, activation="softmax")
+    
+    def call(self, inputs):
+        x = BattleModel.call_fc_layers(inputs)
+        
+        origin_tile = self.origin_model(x)
+        shell_tile = np.identity(48)[origin_tile:origin_tile+1]
+        shell_tile = self.tile_1(shell_tile)
+        shell_tile = self.tile_2(shell_tile)
+
+        card = self.card_1(x)
+
+        return origin_tile, shell_tile, card
+    
+    def predict(self, x, batch_size=None, verbose='auto', steps=None, callbacks=None, max_queue_size=10, workers=1, use_multiprocessing=False):
+        x = BattleModel.format_data(x)
+        return super().predict(x, batch_size, verbose, steps, callbacks, max_queue_size, workers, use_multiprocessing)
+    
+    def fit(self, x=None, y=None, batch_size=None, epochs=1, verbose='auto', callbacks=None, validation_split=0, validation_data=None, shuffle=True, class_weight=None, sample_weight=None, initial_epoch=0, steps_per_epoch=None, validation_steps=None, validation_batch_size=None, validation_freq=1, max_queue_size=10, workers=1, use_multiprocessing=False):
+        x = BattleModel.format_data(x)
+        return super().fit(x, y, batch_size, epochs, verbose, callbacks, validation_split, validation_data, shuffle, class_weight, sample_weight, initial_epoch, steps_per_epoch, validation_steps, validation_batch_size, validation_freq, max_queue_size, workers, use_multiprocessing)
+
 
 class OriginModel(Model):
     def __init__(self, *args, **kwargs):
