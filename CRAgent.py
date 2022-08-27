@@ -7,7 +7,7 @@ import tensorflow as tf
 import os
 from keras.callbacks import History 
 
-from ClashRoyaleHandler import ClashRoyaleHandler
+from Handler import Handler
 from CRModel import StateEncoder, Critic, OriginActor, TileActor, CardActor
 from ActionMapper import ActionMapper
 from Memory import Memory
@@ -39,7 +39,9 @@ class Agent():
         self.batch_size = batch_size
         self.N = N
         self.epohs = epochs
-        
+    
+    def experience(self, experience):
+        self.mem.store(*experience)
     def get_action(self, action_components, choices, cards):
         self.action_mapper.get_action(action_components, choices, cards)
     
@@ -78,7 +80,7 @@ class Agent():
         return card, value, c_prob
         
 
-    def act(self, state):
+    def act(self, env, state):
         """
         Executes an action.
 
@@ -95,8 +97,10 @@ class Agent():
         choices = state["choice_data"]
         cards = state['card_data']
         action = self.get_action(action_components, choices, cards)
+        env.act(action)
 
-        return action, (origin_prob, shell_prob, card_prob), (origin_val, shell_val, card_val)
+
+        return (origin, shell, card), (origin_prob, shell_prob, card_prob), (origin_val, shell_val, card_val)
     
     def get_adv(self, values, rewards, dones):
         g = 0
@@ -127,15 +131,16 @@ class Agent():
             dones.append(elem[-1])
         return origin_vals, shell_vals, card_vals, rewards, dones
 
-    def get_loss(self, actor, critic, actor_tape, critic_tape, batch, advantage, ret):
-        state, action, old_probs, vals, reward, done = batch
-        old_prob = old_probs[0]
-        val = vals[0]  
+    def get_loss(self, actor, critic, batch, advantage, ret, agent_num):
+        state, actions, old_probs, vals, reward, done = batch
+        old_prob = old_probs[agent_num]
+        action = actions[agent_num]
+        val = vals[agent_num]  
 
         probs = actor(state)
         dist = tf.compat.v1.distributions.Categorical(probs=probs, dtype=tf.float32)
 
-        critic_value = self.critic(state)
+        critic_value = critic(state)
         critic_value = tf.squeeze(critic_value)
 
         new_probs = dist.log_prob(action)
@@ -153,7 +158,8 @@ class Agent():
 
     def train_origin(self, batch, batches, origin_adv, origin_returns):
         with tf.GradientTape() as origin_actor_tape, tf.GradientTape() as origin_critic_tape:
-            origin_actor_loss, origin_critic_loss = self.get_loss(self.origin_actor, self.origin_critic, origin_actor_tape, origin_critic_tape, batches[batch], origin_adv, origin_returns[batch])
+            origin_actor_loss, origin_critic_loss = self.get_loss(self.origin_actor, self.origin_critic, batches[batch], origin_adv, origin_returns[batch], 0)
+            
         origin_actor_params = self.origin_actor.trainable_variables
         origin_critic_params = self.origin_critic.trainable_variables
         origin_actor_grads = origin_actor_tape.gradient(origin_actor_loss, origin_actor_params)
@@ -163,7 +169,7 @@ class Agent():
 
     def train_shell(self, batch, batches, shell_adv, shell_returns):
         with tf.GradientTape() as shell_actor_tape, tf.GradientTape() as shell_critic_tape:
-            shell_actor_loss, shell_critic_loss = self.get_loss(self.shell_actor, self.shell_critic, shell_actor_tape, shell_critic_tape, batches[batch, shell_adv, shell_returns[batch]])
+            shell_actor_loss, shell_critic_loss = self.get_loss(self.shell_actor, self.shell_critic, batches[batch, shell_adv, shell_returns[batch]], 1)
         
         shell_actor_params = self.shell_actor.trainable_variables
         shell_critic_params = self.shell_critic.trainable_variables
@@ -174,7 +180,7 @@ class Agent():
     
     def train_card(self, batch, batches, card_adv, card_returns):
         with tf.GradientTape() as card_actor_tape, tf.GradientTape() as card_critic_tape:
-            card_actor_loss, card_critic_loss = self.get_loss(self.card_actor, self.card_critic, card_actor_tape, card_critic_tape, batches[batch, card_adv, card_returns[batch]])
+            card_actor_loss, card_critic_loss = self.get_loss(self.card_actor, self.card_critic, batches[batch, card_adv, card_returns[batch]], 2)
         
         card_actor_params = self.card_actor.trainable_variables
         card_critic_params = self.card_critic.trainable_variables
