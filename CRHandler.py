@@ -156,11 +156,14 @@ class Handler:
         :return: None
         """
         self.scalars = self.get_window_scalars()
-        if choice is None or choice is True:
-            return
+        if choice is None:
+           return
 
         key_mappings = {1: "a", 2: "s", 3: "d", 4: "f"}
-        card_key = key_mappings[choice['card_number']]
+        card_num = choice['card_number']
+        if card_num is None:
+            return None
+        card_key = key_mappings[card_num+1]
         location = choice["tile_screen_location"]
 
         kb.press(card_key)
@@ -486,32 +489,18 @@ class Handler:
 
         # 1tile - 24x20px
         screen_tile_size = (11 * self.scalars[0], 8 * self.scalars[1])
-        choice_data = [True, ]
+        choice_data = []
         card_choices = self.get_cards(frame)
         for x in range(0, 18):
             for y in range(0, 14):
-                for choice in card_choices:
-                    tile_coordinates = np.array([x, y])
-                    tile_screen_location = ((bottom_left_tile_location[0] + (x * screen_tile_size[0])),
+                tile_coordinates = np.array([x, y])
+                tile_screen_location = ((bottom_left_tile_location[0] + (x * screen_tile_size[0])),
                                             (bottom_left_tile_location[1] - (y * screen_tile_size[1])))
-                    try:
-                        if choice[1][0][0] != 1:
-                            choice_data.append({"tile_coordinates": tile_coordinates,
-                                                "tile_screen_location": tile_screen_location,
-                                                "card_number": choice[0],
-                                                "card": choice[1]
-                                                })
-                        else:
-                            choice_data.append(None)
-                    except IndexError:
-                        if choice[1][0] != 1:
-                            choice_data.append({"tile_coordinates": tile_coordinates,
-                                                "tile_screen_location": tile_screen_location,
-                                                "card_number": choice[0],
-                                                "card": choice[1]
-                                                })
-                        else:
-                            choice_data.append(None)
+                    
+                choice_data.append({"tile_coordinates": tile_coordinates,
+                                    "tile_screen_location": tile_screen_location,
+                                    })
+
         if self.spells:
             extra_choice_data = self.gen_north_of_bridge_choice_data(card_choices)
             choice_data.extend(extra_choice_data)
@@ -582,10 +571,10 @@ class Handler:
             added = False
             for c_num in range(len(card_images)):
                 cc = card_images[c_num]
-                matches = cv2.matchTemplate(card[4:-3,4:-3] / 255, cc / 255, cv2.TM_CCOEFF_NORMED)
+                matches = cv2.matchTemplate(card[10:30,10:40] / 255, cc / 255, cv2.TM_CCOEFF_NORMED)
                 _, m, _, _ = cv2.minMaxLoc(matches)
                 if m > 0.7:
-                    playable_cards.append([num, identity[c_num + 1:c_num + 2]])
+                    playable_cards.append([num, identity[c_num + 1]])
                     valids.append(1)
                     added = True
             if not added:

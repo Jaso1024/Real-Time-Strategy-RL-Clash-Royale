@@ -5,13 +5,11 @@ from collections import deque
 import random
 
 class Memory:
-    def __init__(self, batch_size) -> None:
-        self.mem
-        self.batch_size = batch_size
+    def __init__(self) -> None:
+        self.mem = deque()
 
     def generate_batches(self):
-        sample_indicies = random.choices(range(len(self.memory)), k=self.batch_size)
-        for idx in sample_indicies:
+        for idx in range(len(self.mem)):
             experience = self.mem[idx][:]
             yield experience
         

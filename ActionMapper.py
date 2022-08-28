@@ -1,4 +1,6 @@
 import numpy as np
+import tensorflow as tf
+
 
 class ActionMapper:
     def get_origin_square_locations(self):
@@ -12,9 +14,9 @@ class ActionMapper:
         tile_mappings = {1:(-1,-1), 2:(-1,0), 3:(-1,1),
                          4:(0,-1), 5:(0,0), 6:(0,1),
                          7:(1,-1), 8:(1,0), 9:(1,1)}
-        return tile_mappings[tile_of_nine]
+        return tile_mappings[tile_of_nine+1]
 
-    def make_action(self, tile, card):
+    def make_action(self, tile, card_num):
         if type(tile) == dict:
             action = {}
             for key, value in tile.items():
@@ -22,23 +24,46 @@ class ActionMapper:
                     continue
                 else:
                     action[key] = value
-            action['card'] = card
+            
+            action['card_number'] = card_num
         else:
             action = tile
+        print(type(action))
         return action
     
+    def transform_card_data(self, card_data):
+        cards = []
+        for elem in card_data:
+            cards.append(elem[1])
+
+        return cards
+
     def get_action(self, action_components, choices, card_data):
         action = {}
+
+        card_data = self.transform_card_data(card_data)
         origin_squares_data = []
         tile_matrix = self.to_matrix(choices)
-        for x, y in self.origin_square_locations:
+
+        for x, y in self.get_origin_square_locations():
             origin_squares_data.append([x, y])
-        origin_tile_location = origin_squares_data[action_components[0]]
-        tile_component = action_components[1]
+
+        square_num = tf.squeeze(action_components[0])
+        square_num = int(tf.get_static_value(square_num))
+        if square_num == 48:
+            return None
+            
+        origin_tile_location = origin_squares_data[square_num]
+
+        tile_component = tf.squeeze(action_components[1])
+        tile_component = int(tf.get_static_value(tile_component))
         tile_component = self.get_tile(tile_component)
         tile_location = (origin_tile_location[0] + tile_component[0], origin_tile_location[1] + tile_component[1])
         tile = tile_matrix[tile_location]
-        action = self.make_action(tile, card_data[action_components[2]])
+
+        card_num = tf.squeeze(action_components[2])
+        card_num = int(tf.get_static_value(card_num))
+        action = self.make_action(tile, card_num)
         return action
         
     def to_matrix(self, choices):
@@ -48,6 +73,6 @@ class ActionMapper:
             choice_vector = []
             for y in range(14):
                 choice_vector.append(choices[current_idx])
-                current_idx += 4
+                current_idx += 1
             choice_matrix.append(choice_vector)
         return np.array(choice_matrix)
