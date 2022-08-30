@@ -297,7 +297,6 @@ class Handler:
         frame = Image.fromarray(np.array(self.get_frame()))
         rectangle = np.asarray(frame.crop((85, 155, 153, 214)))
 
-        cv2.imwrite("Resources/Templates/RewardLimitReached.png", rectangle)
         template = np.asarray(Image.open("Resources/Templates/RewardLimitReached.png"))
 
         return self.match_to_template(rectangle, template, 0.6)
