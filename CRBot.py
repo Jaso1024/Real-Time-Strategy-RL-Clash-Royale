@@ -20,7 +20,6 @@ class CRBot:
         :param action_active: A boolean representing the latest actions impact on the environment
         :return: A Float representing the reward for the latest action/episode
         """
-
         if done:
             time.sleep(15)  # Wait for game's end animation to finish
             player_crowns = env.get_player_crowns()
@@ -33,16 +32,16 @@ class CRBot:
             crowns_reward -= np.round(4.96392 * np.log(4.86466 * enemy_crowns + 0.753851) + 1.40353)
 
             if player_crowns > enemy_crowns:
-                end_reward = 100.0
+                end_reward = 1000.0
             elif enemy_crowns > player_crowns:
-                end_reward = -100.0
+                end_reward = -1000.0
             else:
                 end_reward = 0
 
             total_reward = crowns_reward + end_reward
             return total_reward
         else:
-            return 1.0
+            return -1.0
 
     def step(self, agent, env, state, duration):
         """
@@ -70,9 +69,9 @@ class CRBot:
     def start_battle(self, env):
         """Start a competetive battle."""
         env.ignore_new_reward()
-        time.sleep(1)
+        time.sleep(5)
         env.battle()
-        time.sleep(1)
+        time.sleep(3)
         if env.check_reward_limit_reached():
             env.acknowledge_reward_limit_reached()
         while env.game_is_over():
@@ -84,7 +83,7 @@ class CRBot:
         wait_start_time = time.time()
         while not env.at_home_screen():
             env.leave_game()
-            time.sleep(5)
+            time.sleep(10)
     
     def print_episode_stats(self, ep_num, duration, reward):
         """Print episode stats."""
@@ -104,7 +103,6 @@ class CRBot:
             duration = time.time() - episode_start_time
             new_state, actions, probs, vals, reward, done = self.step(agent, env, state, duration)
             agent.act(env, state)
-            print("stepped")
             agent.experience((state, actions, probs, vals, reward, done))
             total_reward += reward
             state = new_state
@@ -130,13 +128,15 @@ class CRBot:
         :return: None
         """
         env = Handler(spells)
-        agent = Agent()
+        agent = Agent(load)
 
         episodes = 1000
-        best_reward = 0
+        best_reward = -10000
         
         for ep in range(1, episodes + 1):
             duration, total_reward = self.run_episode(agent, env, learn)
+            if duration < 25:
+                break
             self.print_episode_stats(ep, duration, total_reward)
             agent.train()
             if total_reward > best_reward:
@@ -145,7 +145,7 @@ class CRBot:
             
 if __name__ == '__main__':
     bot = CRBot()
-    bot.play()
+    bot.play(load=False)
 
 
 
