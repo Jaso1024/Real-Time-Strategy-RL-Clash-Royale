@@ -12,7 +12,7 @@ from Memory import Memory
 
 class Agent():
     """A Proximal Policy Gradient Agent"""
-    def __init__(self, alpha=1e-6, gamma=0.95, lam=0.95, clip=0.2, epochs=10) -> None:
+    def __init__(self, origin_lr=1e-6, shell_lr=1e-5, card_lr=1e-5, gamma=0.95, lam=0.95, clip=0.2, epochs=2, load=False) -> None:
         self.state_encoder = StateEncoder()
 
         self.origin_actor = OriginActor()
@@ -22,12 +22,10 @@ class Agent():
         self.card_actor = CardActor()
         self.card_critic = Critic()
         
-        self.origin_actor.compile(optimizer=Adam(learning_rate=alpha))
-        self.origin_critic.compile(optimizer=Adam(learning_rate=alpha))
-        self.shell_actor.compile(optimizer=Adam(learning_rate=alpha))
-        self.shell_critic.compile(optimizer=Adam(learning_rate=alpha))
-        self.card_actor.compile(optimizer=Adam(learning_rate=alpha))
-        self.card_critic.compile(optimizer=Adam(learning_rate=alpha))
+        self.compile(origin_lr, shell_lr, card_lr)
+
+        if load:
+            self.load()
 
         self.action_mapper = ActionMapper()
         self.mem = Memory()
@@ -37,14 +35,31 @@ class Agent():
         self.clip = clip
         self.epohs = epochs
     
+    def compile(self, origin_lr, shell_lr, card_lr):
+        self.origin_actor.compile(optimizer=Adam(learning_rate=origin_lr))
+        self.origin_critic.compile(optimizer=Adam(learning_rate=origin_lr))
+        self.shell_actor.compile(optimizer=Adam(learning_rate=shell_lr))
+        self.shell_critic.compile(optimizer=Adam(learning_rate=shell_lr))
+        self.card_actor.compile(optimizer=Adam(learning_rate=card_lr))
+        self.card_critic.compile(optimizer=Adam(learning_rate=card_lr))
+        
     def save(self):
-        self.state_encoder.save("state_encoder")
-        self.origin_actor.save("origin_actor")
-        self.origin_critic.save("origin_critic")
-        self.shell_actor.save("shell_actor")
-        self.shell_critic.save("shell_critic")
-        self.card_actor.save("card_actor")
-        self.card_critic.save("card_critic")
+        self.state_encoder.save_weights("state_encoder")
+        self.origin_actor.save_weights("origin_actor")
+        self.origin_critic.save_weights("origin_critic")
+        self.shell_actor.save_weights("shell_actor")
+        self.shell_critic.save_weights("shell_critic")
+        self.card_actor.save_weights("card_actor")
+        self.card_critic.save_weights("card_critic")
+    
+    def load(self):
+        self.state_encoder.load_weights("state_encoder")
+        self.origin_actor.load_weights("origin_actor")
+        self.origin_critic.load_weights("origin_critic")
+        self.shell_actor.load_weights("shell_actor")
+        self.shell_critic.load_weights("shell_critic")
+        self.card_actor.load_weights("card_actor")
+        self.card_critic.load_weights("card_critic")
 
     def experience(self, experience):
         self.mem.store(*experience)
@@ -81,8 +96,6 @@ class Agent():
         card_probs = self.card_actor(encoded_state)
         card_dist = tf.compat.v1.distributions.Categorical(probs=card_probs, dtype=tf.float32)
         card = card_dist.sample()
-        print(card)
-
         value = self.card_critic(encoded_state)
 
         c_prob = card_dist.log_prob(card)
@@ -106,8 +119,6 @@ class Agent():
         action_components = (origin, shell, card)
         choices = state["choice_data"]
         cards = state['card_data']
-        print(np.array(cards).shape)
-        print(np.array(cards))
         action = self.get_action(action_components, choices, cards)
         env.act(action)
 

@@ -28,7 +28,6 @@ class ActionMapper:
             action['card_number'] = card_num
         else:
             action = tile
-        print(type(action))
         return action
     
     def transform_card_data(self, card_data):
