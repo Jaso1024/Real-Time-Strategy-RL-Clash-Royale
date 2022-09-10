@@ -1,8 +1,6 @@
-from re import S
 import numpy as np
 from keras.optimizers import Adam
 import tensorflow as tf
-import os
 from keras.callbacks import History 
 
 from CRHandler import Handler
@@ -43,23 +41,23 @@ class Agent():
         self.card_actor.compile(optimizer=Adam(learning_rate=card_lr))
         self.card_critic.compile(optimizer=Adam(learning_rate=card_lr))
         
-    def save(self):
-        self.state_encoder.save_weights("state_encoder")
-        self.origin_actor.save_weights("origin_actor")
-        self.origin_critic.save_weights("origin_critic")
-        self.shell_actor.save_weights("shell_actor")
-        self.shell_critic.save_weights("shell_critic")
-        self.card_actor.save_weights("card_actor")
-        self.card_critic.save_weights("card_critic")
+    def save(self, path="TrainedWeights/"):
+        self.state_encoder.save_weights(path+"state_encoder")
+        self.origin_actor.save_weights(path+"origin_actor")
+        self.origin_critic.save_weights(path+"origin_critic")
+        self.shell_actor.save_weights(path+"shell_actor")
+        self.shell_critic.save_weights(path+"shell_critic")
+        self.card_actor.save_weights(path+"card_actor")
+        self.card_critic.save_weights(path+"card_critic")
     
-    def load(self):
-        self.state_encoder.load_weights("state_encoder")
-        self.origin_actor.load_weights("origin_actor")
-        self.origin_critic.load_weights("origin_critic")
-        self.shell_actor.load_weights("shell_actor")
-        self.shell_critic.load_weights("shell_critic")
-        self.card_actor.load_weights("card_actor")
-        self.card_critic.load_weights("card_critic")
+    def load(self, path="TrainedWeights/"):
+        self.state_encoder.load_weights(path+"state_encoder")
+        self.origin_actor.load_weights(path+"origin_actor")
+        self.origin_critic.load_weights(path+"origin_critic")
+        self.shell_actor.load_weights(path+"shell_actor")
+        self.shell_critic.load_weights(path+"shell_critic")
+        self.card_actor.load_weights(path+"card_actor")
+        self.card_critic.load_weights(path+"card_critic")
 
     def experience(self, experience):
         self.mem.store(*experience)
@@ -233,12 +231,4 @@ class Agent():
             self.learn()
 
 
-
-
-if __name__ == '__main__':
-    agent = Agent()
-    env = Handler()
-    state = env.get_state()
-    agent.act(env, state)
-    print("done")
         
