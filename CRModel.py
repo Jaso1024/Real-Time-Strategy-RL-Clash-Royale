@@ -1,11 +1,8 @@
-from argparse import Action
 import numpy as np
 import tensorflow as tf
 from keras.models import Model
 from keras.layers import Conv2D, Dense, concatenate, Flatten, LeakyReLU, BatchNormalization
 from keras.activations import *
-from keras import backend as K
-from CRHandler import Handler
 
 
 class StateEncoder(Model):

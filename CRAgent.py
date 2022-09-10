@@ -1,9 +1,7 @@
 import numpy as np
 from keras.optimizers import Adam
 import tensorflow as tf
-from keras.callbacks import History 
 
-from CRHandler import Handler
 from CRModel import StateEncoder, Critic, OriginActor, TileActor, CardActor
 from ActionMapper import ActionMapper
 from Memory import Memory
