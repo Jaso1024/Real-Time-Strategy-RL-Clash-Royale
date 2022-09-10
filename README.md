@@ -4,16 +4,17 @@ Reinforcement learning PPO Agent for Clash Royale
 
 ## Installation
 
-Requirements:
-- pip
-- Python 3.7+
-- Bluestacks Android Emulator
-- Clash Royale on the Bluestacks Emulator
-
-Install the dependencies by running
-
-pip install -r requirements.txt
-
+### Dependencies
+- numpy v1.23.2
+- pandas v1.4.3
+- tensorflow v2.9.1
+- keras v2.9.0
+- cv2 v4.6.0
+- PIL v9.2.0
+- keyboard v0.13.5
+- pywin32 v304
+- pyautogui v0.9.53
+- absl-py v1.2.0
 
 ### Installing Bluestacks
 1: Navigate to the Bluestacks website - https://www.bluestacks.com/
