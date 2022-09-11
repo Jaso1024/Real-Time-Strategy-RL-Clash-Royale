@@ -2,14 +2,15 @@ import numpy as np
 from keras.optimizers import Adam
 import tensorflow as tf
 
-from CRModel import StateEncoder, Critic, OriginActor, TileActor, CardActor
+from CRModel import StateAutoEncoder, Critic, OriginActor, TileActor, CardActor
 from ActionMapper import ActionMapper
 from Memory import Memory
 
 class Agent():
     """A Proximal Policy Gradient Agent"""
     def __init__(self, origin_lr=1e-6, shell_lr=1e-5, card_lr=1e-5, gamma=0.95, lam=0.95, clip=0.2, epochs=2, load=False) -> None:
-        self.state_encoder = StateEncoder()
+        self.state_autoencoder = StateAutoEncoder()
+        self.state_autoencoder.compile(optimizer=Adam(learning_rate=3e-6), loss="mse")
 
         self.origin_actor = OriginActor()
         self.origin_critic = Critic()
@@ -29,7 +30,7 @@ class Agent():
         self.gamma = gamma
         self.lam = lam
         self.clip = clip
-        self.epohs = epochs
+        self.epochs = epochs
     
     def compile(self, origin_lr, shell_lr, card_lr):
         self.origin_actor.compile(optimizer=Adam(learning_rate=origin_lr))
@@ -40,7 +41,7 @@ class Agent():
         self.card_critic.compile(optimizer=Adam(learning_rate=card_lr))
         
     def save(self, path="TrainedWeights/"):
-        self.state_encoder.save_weights(path+"state_encoder")
+        self.state_autoencoder.save_weights(path+"state_encoder")
         self.origin_actor.save_weights(path+"origin_actor")
         self.origin_critic.save_weights(path+"origin_critic")
         self.shell_actor.save_weights(path+"shell_actor")
@@ -49,7 +50,7 @@ class Agent():
         self.card_critic.save_weights(path+"card_critic")
     
     def load(self, path="TrainedWeights/"):
-        self.state_encoder.load_weights(path+"state_encoder")
+        self.state_autoencoder.load_weights(path+"state_encoder")
         self.origin_actor.load_weights(path+"origin_actor")
         self.origin_critic.load_weights(path+"origin_critic")
         self.shell_actor.load_weights(path+"shell_actor")
@@ -107,7 +108,7 @@ class Agent():
         :param state: A dictionary representing the current state of the Clash Royale window
         :return: A tuple (int - the action, boolean - if the action change the environment)
         """
-        encoded_state = self.state_encoder(state)
+        encoded_state = self.state_autoencoder.encode(state)
         origin, origin_val, origin_prob = self.get_origin_action(encoded_state)
         shell, shell_val, shell_prob = self.get_shell_action(origin)
         card, card_val, card_prob = self.get_card_action(encoded_state)
@@ -154,7 +155,7 @@ class Agent():
         action = actions[agent_num]
         vals = vals[agent_num]  
         
-        state = self.state_encoder(state)
+        state = self.state_autoencoder.encode(state)
         if shell:
             state = self.origin_actor(state)
         probs = actor(state)
@@ -212,7 +213,7 @@ class Agent():
     def learn(self):
         batches = list(self.mem.generate_batches())
 
-        origin_vals, shell_vals, card_vals, rewards, dones= self.get_adv_vals(batches)
+        origin_vals, shell_vals, card_vals, rewards, dones = self.get_adv_vals(batches)
         origin_adv, origin_returns = self.get_adv(origin_vals, rewards, dones)
         shell_adv, shell_returns= self.get_adv(shell_vals, rewards, dones)
         card_adv, card_returns = self.get_adv(card_vals, rewards, dones)
@@ -221,12 +222,15 @@ class Agent():
             self.train_origin(batch, batches, origin_adv, origin_returns)
             self.train_shell(batch, batches, shell_adv, shell_returns)  
             self.train_card(batch, batches, card_adv, card_returns)
-        
-        self.mem.clear()
+    
+    def fit_state_ae(self):
+        for experience in self.mem.mem:
+            self.state_autoencoder.fit(experience[0]) 
     
     def train(self):
-        for _ in range(self.epohs):
+        for _ in range(self.epochs):
             self.learn()
-
+        self.fit_state_ae()
+        self.mem.clear() 
 
         

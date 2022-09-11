@@ -1,30 +1,36 @@
+from sqlite3 import adapt
 import numpy as np
 import tensorflow as tf
 from keras.models import Model
-from keras.layers import Conv2D, Dense, concatenate, Flatten, LeakyReLU, BatchNormalization
+from keras.layers import Conv2D, Dense, concatenate, Flatten, LeakyReLU, BatchNormalization, Reshape
 from keras.activations import *
+from keras.optimizers import *
+
+from CRHandler import Handler
+import time
 
 
-class StateEncoder(Model):
+class StateAutoEncoder(Model):
     """A model for Clash Royale battles"""
 
     def __init__(self):
-        super(StateEncoder, self).__init__()
+        super(StateAutoEncoder, self).__init__()
         self.build_layers()
 
     def build_layers(self):
         initializer = tf.keras.initializers.HeNormal()
 
+        # Encoder
+        # Elixir
         self.elixir_1 = Flatten(name="Elixir_layer_1-Flatten")
         self.elixir_2 = Dense(64, activation="relu", name="Elixir_layer_2-Dense", kernel_initializer=initializer)
 
         # Cards
-        
         self.card_1 = Dense(9, activation="relu", name="Card_layer_1-Dense", kernel_initializer=initializer)
         self.card_2 = Flatten(name="Card_layer_2-Flatten")
         self.card_3 = Dense(128, activation='relu', name="Card_layer_3-Dense", kernel_initializer=initializer)
 
-        # field
+        # Field
         self.field_player_1 = Conv2D(256, 5, padding="same", activation=None, name="Field_player_layer_1-Conv2D", kernel_initializer=initializer)
         self.field_player_2 = BatchNormalization()
         self.field_player_3 = LeakyReLU(0.2)
@@ -53,17 +59,26 @@ class StateEncoder(Model):
         self.field_enemy_12 = LeakyReLU(0.2)
         self.field_enemy_13 = Flatten(name="Field_enemy_layer_4-Flatten")
 
-        self.field_left_1 = Flatten(name="Field_left_layer_5-Flatten")
-        self.field_left_2 = Dense(32, activation="relu", name="Field_left_layer_6-Dense", kernel_initializer=initializer)
-
-        self.field_right_1 = Flatten(name="Field_right_layer_5-Flatten")
-        self.field_right_2 = Dense(32, activation="relu", name="Field_right_layer_6-Dense", kernel_initializer=initializer)
+        self.bridge_1 = Flatten(name="Field_layer_5-Flatten")
+        self.bridge_2 = Dense(32, activation="relu", name="Field_layer_6-Dense", kernel_initializer=initializer)
 
         # combined
         self.combined_1 = Dense(4096, activation=None, name="Combined_factors_layer_1-Dense", kernel_initializer=initializer)
         self.combined_2 = LeakyReLU(0.2)
 
-    def call(self, inputs):
+        # decoder
+        self.elixir_1_d = Dense(64, activation="relu")
+        self.card_1_d = Dense(9, activation="sigmoid")
+        self.field_player_1_d = Dense(1683, activation="relu")
+        self.field_player_2_d = Reshape((33, 51))
+        self.field_enemy_1_d = Dense(1632, activation="relu")
+        self.field_enemy_2_d = Reshape((32, 51))
+        self.brigde_1_d = Dense(24, activation="relu")
+        self.bridge_2_d = Reshape((6,4))
+
+
+
+    def encode(self, inputs):
         """
         Calls the layers that are shared between the state and advantage values.
 
@@ -124,20 +139,97 @@ class StateEncoder(Model):
         field_e_x = self.field_enemy_12(field_e_x)
         field_e_x = self.field_enemy_13(field_e_x)
 
-        field_l_x = self.field_left_1(field_l_in)
-        field_l_x = self.field_left_2(field_l_x)
+        field_l_x = self.bridge_1(field_l_in)
+        field_l_x = self.bridge_2(field_l_x)
 
-        field_r_x = self.field_left_1(field_r_in)
-        field_r_x = self.field_left_2(field_r_x)
+        field_r_x = self.bridge_1(field_r_in)
+        field_r_x = self.bridge_2(field_r_x)
 
         x = concatenate([elixir_x, card_1x, card_2x, card_3x, card_4x, field_p_x, field_e_x, field_l_x, field_r_x])
         x = self.combined_1(x)
         x = self.combined_2(x)
         return x
-        
-    def normalize_img(self, img):
-        """Normalize the given images values between 0 and 1"""
-        return img/255
+    
+    def call(self, inputs):
+        elixir_in, card_in, field_p_in, field_e_in, field_l_in, field_r_in = inputs
+        elixir_x = self.elixir_1(elixir_in)
+        elixir_x = self.elixir_2(elixir_x)
+
+        card_1x = self.card_1(card_in[0][0])
+        card_1x = self.card_2(card_1x)
+        card_1x = self.card_3(card_1x)
+
+        card_2x = self.card_1(card_in[0][1])
+        card_2x = self.card_2(card_2x)
+        card_2x = self.card_3(card_2x)
+
+        card_3x = self.card_1(card_in[0][2])
+        card_3x = self.card_2(card_3x)
+        card_3x = self.card_3(card_3x)
+
+        card_4x = self.card_1(card_in[0][3])
+        card_4x = self.card_2(card_4x)
+        card_4x = self.card_3(card_4x)
+
+        field_p_x = self.field_player_1(field_p_in)
+        field_p_x = self.field_player_2(field_p_x)
+        field_p_x = self.field_player_3(field_p_x)
+        field_p_x = self.field_player_4(field_p_x)
+        field_p_x = self.field_player_5(field_p_x)
+        field_p_x = self.field_player_6(field_p_x)
+        field_p_x = self.field_player_7(field_p_x)
+        field_p_x = self.field_player_8(field_p_x)
+        field_p_x = self.field_player_9(field_p_x)
+        field_p_x = self.field_player_10(field_p_x)
+        field_p_x = self.field_player_11(field_p_x)
+        field_p_x = self.field_player_12(field_p_x)
+        field_p_x = self.field_player_13(field_p_x)
+
+        field_e_x = self.field_enemy_1(field_e_in)
+        field_e_x = self.field_enemy_2(field_e_x)
+        field_e_x = self.field_enemy_3(field_e_x)
+        field_e_x = self.field_enemy_4(field_e_x)
+        field_e_x = self.field_enemy_5(field_e_x)
+        field_e_x = self.field_enemy_6(field_e_x)
+        field_e_x = self.field_enemy_7(field_e_x)
+        field_e_x = self.field_enemy_8(field_e_x)
+        field_e_x = self.field_enemy_9(field_e_x)
+        field_e_x = self.field_enemy_10(field_e_x)
+        field_e_x = self.field_enemy_11(field_e_x)
+        field_e_x = self.field_enemy_12(field_e_x)
+        field_e_x = self.field_enemy_13(field_e_x)
+
+        field_l_x = self.bridge_1(field_l_in)
+        field_l_x = self.bridge_2(field_l_x)
+
+        field_r_x = self.bridge_1(field_r_in)
+        field_r_x = self.bridge_2(field_r_x)
+
+        x = concatenate([elixir_x, card_1x, card_2x, card_3x, card_4x, field_p_x, field_e_x, field_l_x, field_r_x])
+        x = self.combined_1(x)
+        x = self.combined_2(x)
+
+        e  = self.elixir_1_d(x)
+
+        c1 = self.card_1_d(x)
+        c2 = self.card_1_d(x)
+        c3 = self.card_1_d(x)
+        c4 = self.card_1_d(x)
+
+
+        fp = self.field_player_1_d(x)
+        fp = self.field_player_2_d(fp)
+
+        fe = self.field_enemy_1_d(x)
+        fe = self.field_enemy_2_d(fe)
+
+        bleft = self.brigde_1_d(x)
+        bleft = self.bridge_2_d(bleft)
+
+        bright = self.brigde_1_d(x)
+        bright = self.bridge_2_d(bright)
+
+        return e, [[c1, c2, c3, c4]], fp, fe, bleft, bright
 
     def predict(self, x, batch_size=None, verbose='auto', steps=None, callbacks=None, max_queue_size=10, workers=1, use_multiprocessing=False):
         x = self.format_data(x)
@@ -145,22 +237,7 @@ class StateEncoder(Model):
     
     def fit(self, x=None, y=None, batch_size=None, epochs=1, verbose='auto', callbacks=None, validation_split=0, validation_data=None, shuffle=True, class_weight=None, sample_weight=None, initial_epoch=0, steps_per_epoch=None, validation_steps=None, validation_batch_size=None, validation_freq=1, max_queue_size=10, workers=1, use_multiprocessing=False):
         x = self.format_data(x)
-        return super().fit(x, y, batch_size, epochs, verbose, callbacks, validation_split, validation_data, shuffle, class_weight, sample_weight, initial_epoch, steps_per_epoch, validation_steps, validation_batch_size, validation_freq, max_queue_size, workers, use_multiprocessing)
-    
-
-
-    def call_fc_layers(cls, inputs):
-        split_outs = []
-        for inp, layers in zip(inputs, StateEncoder.fully_connected_layers):
-            x = layers[0](inp)
-            for layer in layers[1:]:
-                x = layer(x)
-            split_outs.append(x)
-
-        x = concatenate(split_outs)
-        for layer in StateEncoder.combined_layers:
-            x = layer(x)
-        return x
+        return super().fit(x, x, batch_size, epochs, verbose, callbacks, validation_split, validation_data, shuffle, class_weight, sample_weight, initial_epoch, steps_per_epoch, validation_steps, validation_batch_size, validation_freq, max_queue_size, workers, use_multiprocessing)
     
     def format_data(self, state_data):
         """Formats the inputs"""
@@ -205,11 +282,11 @@ class Critic(Model):
         return v
 
     def predict(self, x, batch_size=None, verbose='auto', steps=None, callbacks=None, max_queue_size=10, workers=1, use_multiprocessing=False):
-        x = StateEncoder.format_data(x)
+        x = StateAutoEncoder.format_data(x)
         return super().predict(x, batch_size, verbose, steps, callbacks, max_queue_size, workers, use_multiprocessing)
     
     def fit(self, x=None, y=None, batch_size=None, epochs=1, verbose='auto', callbacks=None, validation_split=0, validation_data=None, shuffle=True, class_weight=None, sample_weight=None, initial_epoch=0, steps_per_epoch=None, validation_steps=None, validation_batch_size=None, validation_freq=1, max_queue_size=10, workers=1, use_multiprocessing=False):
-        x = StateEncoder.format_data(x)
+        x = StateAutoEncoder.format_data(x)
         return super().fit(x, y, batch_size, epochs, verbose, callbacks, validation_split, validation_data, shuffle, class_weight, sample_weight, initial_epoch, steps_per_epoch, validation_steps, validation_batch_size, validation_freq, max_queue_size, workers, use_multiprocessing)
     
 class OriginActor(Model):
@@ -242,3 +319,13 @@ class CardActor(Model):
     def call(self, inp):
         card = self.card_1(inp)
         return card
+
+if __name__ == '__main__':
+    ae = StateAutoEncoder()
+    env = Handler()
+    state = env.get_state()
+    opt = Adam(learning_rate=1e-5)
+    ae.compile(optimizer=opt, loss="mse")
+    start = time.time()
+    print(ae.fit(state, state, epochs=5))
+    print(time.time()-start)

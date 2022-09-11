@@ -41,6 +41,7 @@ class ActionMapper:
         action = {}
 
         card_data = self.transform_card_data(card_data)
+
         origin_squares_data = []
         tile_matrix = self.to_matrix(choices)
 
@@ -49,6 +50,7 @@ class ActionMapper:
 
         square_num = tf.squeeze(action_components[0])
         square_num = int(tf.get_static_value(square_num))
+        
         if square_num == 48:
             return None
             
@@ -62,6 +64,8 @@ class ActionMapper:
 
         card_num = tf.squeeze(action_components[2])
         card_num = int(tf.get_static_value(card_num))
+        if card_data[card_num].flatten()[0] == 1:
+            card_num = None
         action = self.make_action(tile, card_num)
         return action
         

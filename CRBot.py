@@ -1,9 +1,6 @@
-from collections import deque
+from cmath import inf
 import numpy as np
 import time
-import os
-
-import matplotlib.pyplot as plt
 
 from CRHandler import Handler
 from CRAgent import Agent
@@ -29,19 +26,19 @@ class CRBot:
             # This log function produces a slope that gives less reward
             # crowns to rewards {0:0, 1:10, 2:13, 3:15}
             crowns_reward = np.round(4.96392 * np.log(4.86466 * player_crowns + 0.753851) + 1.40353)
-            crowns_reward -= np.round(4.96392 * np.log(4.86466 * enemy_crowns + 0.753851) + 1.40353)
+            crowns_reward -= np.round(4.96392* np.log(4.86466 * enemy_crowns + 0.753851) + 1.40353)
 
             if player_crowns > enemy_crowns:
-                end_reward = 1000.0
+                end_reward = 300.0
             elif enemy_crowns > player_crowns:
-                end_reward = -1000.0
+                end_reward = -200.0
             else:
                 end_reward = 0
 
             total_reward = crowns_reward + end_reward
             return total_reward
         else:
-            return -1.0
+            return 0.1
 
     def step(self, agent, env, state, duration):
         """
@@ -59,22 +56,19 @@ class CRBot:
             done = True
             time.sleep(360)
         else:
-            done = env.game_is_over()
+            done = env.training_game_over()
 
         actions, probs, vals = agent.act(env, state)
         reward = self.get_reward(env, done)
         new_state = env.get_state()
         return new_state, actions, probs, vals, reward, done
 
-    def start_battle(self, env):
-        """Start a competetive battle."""
-        env.ignore_new_reward()
-        time.sleep(5)
-        env.battle()
+    def start_training_game(self, env):
+        """Starts a training game"""
+
+        env.start_training_game()
         time.sleep(3)
-        if env.check_reward_limit_reached():
-            env.acknowledge_reward_limit_reached()
-        while env.game_is_over():
+        while env.training_game_over():
             continue
 
     @staticmethod
@@ -91,12 +85,12 @@ class CRBot:
         print("------------------------------------------------------------")
 
         
-    def run_episode(self, agent, env, learn=True, memories_per_step=0):
+    def run_episode(self, agent, env):
         """Runs a single episode."""
         done = False
         total_reward = 0
 
-        self.start_battle(env)
+        self.start_training_game(env)
         state = env.get_state()
         episode_start_time = time.time()
         while not done:
@@ -107,11 +101,10 @@ class CRBot:
             total_reward += reward
             state = new_state
 
-        print("done")
         self.leave_game(env)
         return duration, total_reward
 
-    def play(self, episodes=300, learn=True, spells=False, epsilon=0.5, decay=.9995, checkpoint=100, remembrance_steps=320, target_episodes=5, scatter=False, load=True):
+    def play(self, episodes=1, learn=True, spells=False, load=True, save=True):
         """
         Plays a series of Clash Royale game.
 
@@ -130,22 +123,19 @@ class CRBot:
         env = Handler(spells)
         agent = Agent(load)
 
-        episodes = 1000
-        best_reward = -10000
+        best_reward = float(-inf)
         
         for ep in range(1, episodes + 1):
-            duration, total_reward = self.run_episode(agent, env, learn)
+            duration, total_reward = self.run_episode(agent, env)
             if duration < 25:
                 break
             self.print_episode_stats(ep, duration, total_reward)
             agent.train()
-            if total_reward > best_reward:
+            if total_reward > best_reward and save:
                 agent.save()
 
             
-if __name__ == '__main__':
-    bot = CRBot()
-    bot.play(load=False)
+
 
 
 
