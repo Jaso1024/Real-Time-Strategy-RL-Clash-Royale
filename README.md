@@ -55,7 +55,13 @@ The rewards for crowns lost and crowns won follow the function below:
 This function gives the agents a larger reward the bigger the difference between the number of crowns the player has won and lost is, and results in a maximum reward of `+15` and a minimum reward of `-15`.
  
 ## Model architecture
-Overview of the network:
+Overview:
+
+![Clash Royale Bot diagram 2 drawio](https://user-images.githubusercontent.com/107654508/189508061-ea59d39d-d6f3-45d8-a7a7-10de33bc8e9e.png)
+
+State encoder:
+
+![State autoencoder diagram drawio (2)](https://user-images.githubusercontent.com/107654508/189507834-3ab31ae1-5173-40e3-8e6b-2b0abd24fe07.png)
 
 
 
@@ -103,6 +109,8 @@ Window Location: This program uses snapshots of the computers screen in order to
 
 
 # Running the agent
+
+Go to MainLoop.py, sent the desired number of episodes, as well as the learn and train variables, and run.
 
 
 
