@@ -50,7 +50,10 @@ class Agent():
         self.card_critic.save_weights(path+"CardWeights/card_critic")
     
     def load(self, path="TrainedWeights/"):
-        self.state_autoencoder.load_weights(path+"StateWeights/state_encoder")
+        try:
+            self.state_autoencoder.load_weights(path+"StateWeights/state_encoder")
+        except:
+            print("State Autoencoder weights could not be loaded")
         self.origin_actor.load_weights(path+"OriginWeights/origin_actor")
         self.origin_critic.load_weights(path+"OriginWeights/origin_critic")
         self.shell_actor.load_weights(path+"ShellWeights/shell_actor")
