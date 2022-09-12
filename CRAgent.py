@@ -8,9 +8,9 @@ from Memory import Memory
 
 class Agent():
     """A Proximal Policy Gradient Agent"""
-    def __init__(self, origin_lr=1e-6, shell_lr=1e-5, card_lr=1e-5, gamma=0.95, lam=0.95, clip=0.2, epochs=2, load=False) -> None:
+    def __init__(self, origin_lr=1e-3, shell_lr=1e-3, card_lr=1e-3, ae_lr=3e-6, gamma=0.95, lam=0.95, clip=0.2, epochs=10, load=False) -> None:
         self.state_autoencoder = StateAutoEncoder()
-        self.state_autoencoder.compile(optimizer=Adam(learning_rate=3e-6), loss="mse")
+        self.state_autoencoder.compile(optimizer=Adam(learning_rate=ae_lr), loss="mse")
 
         self.origin_actor = OriginActor()
         self.origin_critic = Critic()
@@ -41,22 +41,22 @@ class Agent():
         self.card_critic.compile(optimizer=Adam(learning_rate=card_lr))
         
     def save(self, path="TrainedWeights/"):
-        self.state_autoencoder.save_weights(path+"state_encoder")
-        self.origin_actor.save_weights(path+"origin_actor")
-        self.origin_critic.save_weights(path+"origin_critic")
-        self.shell_actor.save_weights(path+"shell_actor")
-        self.shell_critic.save_weights(path+"shell_critic")
-        self.card_actor.save_weights(path+"card_actor")
-        self.card_critic.save_weights(path+"card_critic")
+        self.state_autoencoder.save_weights(path+"StateWeights/state_encoder")
+        self.origin_actor.save_weights(path+"OriginWeights/origin_actor")
+        self.origin_critic.save_weights(path+"OriginWeights/origin_critic")
+        self.shell_actor.save_weights(path+"ShellWeights/shell_actor")
+        self.shell_critic.save_weights(path+"ShellWeights/shell_critic")
+        self.card_actor.save_weights(path+"CardWeights/card_actor")
+        self.card_critic.save_weights(path+"CardWeights/card_critic")
     
     def load(self, path="TrainedWeights/"):
-        self.state_autoencoder.load_weights(path+"state_encoder")
-        self.origin_actor.load_weights(path+"origin_actor")
-        self.origin_critic.load_weights(path+"origin_critic")
-        self.shell_actor.load_weights(path+"shell_actor")
-        self.shell_critic.load_weights(path+"shell_critic")
-        self.card_actor.load_weights(path+"card_actor")
-        self.card_critic.load_weights(path+"card_critic")
+        self.state_autoencoder.load_weights(path+"StateWeights/state_encoder")
+        self.origin_actor.load_weights(path+"OriginWeights/origin_actor")
+        self.origin_critic.load_weights(path+"OriginWeights/origin_critic")
+        self.shell_actor.load_weights(path+"ShellWeights/shell_actor")
+        self.shell_critic.load_weights(path+"ShellWeights/shell_critic")
+        self.card_actor.load_weights(path+"CardWeights/card_actor")
+        self.card_critic.load_weights(path+"CardWeights/card_critic")
 
     def experience(self, experience):
         self.mem.store(*experience)
@@ -68,36 +68,27 @@ class Agent():
         origin_probs = self.origin_actor(encoded_state)
         origin_dist = tf.compat.v1.distributions.Categorical(probs=origin_probs, dtype=tf.float32)
         origin = origin_dist.sample()
-
+        
         value = self.origin_critic(encoded_state)
-
-        o_prob = origin_dist.log_prob(origin)
-
-        return origin, value, o_prob
+        return origin, value, origin_probs
     
-    def get_shell_action(self, origin):
-        origin = tf.squeeze(origin)
-        origin = int(tf.get_static_value(origin))
-        encoded_origin = np.identity(49)[origin:origin+1]
-        shell_probs = self.shell_actor(encoded_origin)
+    def get_shell_action(self, encoded_state):
+        shell_probs = self.shell_actor(encoded_state)
         shell_dist = tf.compat.v1.distributions.Categorical(probs=shell_probs, dtype=tf.float32)
         shell = shell_dist.sample()
 
-        value = self.shell_critic(encoded_origin)
+        value = self.shell_critic(encoded_state)
 
-        s_prob = shell_dist.log_prob(shell)
-
-        return shell, value, s_prob
+        return shell, value, shell_probs
 
     def get_card_action(self, encoded_state):
         card_probs = self.card_actor(encoded_state)
         card_dist = tf.compat.v1.distributions.Categorical(probs=card_probs, dtype=tf.float32)
         card = card_dist.sample()
+
         value = self.card_critic(encoded_state)
 
-        c_prob = card_dist.log_prob(card)
-
-        return card, value, c_prob
+        return card, value, card_probs
         
 
     def act(self, env, state):
@@ -110,7 +101,7 @@ class Agent():
         """
         encoded_state = self.state_autoencoder.encode(state)
         origin, origin_val, origin_prob = self.get_origin_action(encoded_state)
-        shell, shell_val, shell_prob = self.get_shell_action(origin)
+        shell, shell_val, shell_prob = self.get_shell_action(encoded_state)
         card, card_val, card_prob = self.get_card_action(encoded_state)
 
         action_components = (origin, shell, card)
@@ -149,29 +140,27 @@ class Agent():
             dones.append(elem[-1])
         return origin_vals, shell_vals, card_vals, rewards, dones
 
-    def get_loss(self, actor, critic, batches, batch, advantage, ret, agent_num, shell=False):
+    def get_loss(self, actor, critic, batches, batch, advantage, ret, agent_num):
         state, actions, old_probs, vals, reward, done = batches[batch]
         old_probs = old_probs[agent_num]
         action = actions[agent_num]
         vals = vals[agent_num]  
         
         state = self.state_autoencoder.encode(state)
-        if shell:
-            state = self.origin_actor(state)
-        probs = actor(state)
-        dist = tf.compat.v1.distributions.Categorical(probs=probs, dtype=tf.float32)
 
         critic_value = critic(state)
         critic_value = tf.squeeze(critic_value)
+        
+        action = int(tf.get_static_value(action))
+        probs = actor(state)
 
-        new_probs = dist.log_prob(action)
-        prob_ratio = tf.math.exp(new_probs - old_probs)
+        prob_ratio =  tf.math.log(probs[0][action] + 1e-10) - tf.math.log(old_probs[0][action] + 1e-10)
         weighted_probs = advantage * prob_ratio
         clipped_probs = tf.clip_by_value(prob_ratio, 1-self.clip, 1+self.clip)
         weighted_clipped_probs = clipped_probs * advantage[batch]
 
-        actor_loss = -tf.math.minimum(weighted_probs, weighted_clipped_probs)
-        actor_loss = tf.math.reduce_mean(actor_loss)
+        actor_loss = tf.math.minimum(clipped_probs, weighted_clipped_probs)
+        actor_loss = -tf.math.reduce_mean(actor_loss)
 
         critic_loss = tf.keras.losses.mean_squared_error(critic_value, ret)
 
@@ -190,7 +179,7 @@ class Agent():
 
     def train_shell(self, batch, batches, shell_adv, shell_returns):
         with tf.GradientTape() as shell_actor_tape, tf.GradientTape() as shell_critic_tape:
-            shell_actor_loss, shell_critic_loss = self.get_loss(self.shell_actor, self.shell_critic, batches, batch, shell_adv, shell_returns[batch], 1, shell=True)
+            shell_actor_loss, shell_critic_loss = self.get_loss(self.shell_actor, self.shell_critic, batches, batch, shell_adv, shell_returns[batch], 1)
         
         shell_actor_params = self.shell_actor.trainable_variables
         shell_critic_params = self.shell_critic.trainable_variables
@@ -225,12 +214,11 @@ class Agent():
     
     def fit_state_ae(self):
         for experience in self.mem.mem:
-            self.state_autoencoder.fit(experience[0]) 
+            self.state_autoencoder.fit(experience[0], verbose=0) 
     
     def train(self):
         for _ in range(self.epochs):
             self.learn()
-        self.fit_state_ae()
         self.mem.clear() 
 
         

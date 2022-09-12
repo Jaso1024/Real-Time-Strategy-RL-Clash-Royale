@@ -3,9 +3,8 @@ from CRBot import CRBot
 if __name__ == '__main__':
     bot = CRBot()
 
-    episodes = 10
-    load = False
-    save = False
+    episodes = 1000
+    load = True
+    save = True
     bot.play(episodes, load, save)
 
-    

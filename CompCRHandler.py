@@ -1,4 +1,3 @@
-
 import os
 import time
 
@@ -44,12 +43,12 @@ class Handler:
 
         choice_data, card_data = self.gen_choice_data(frame)
 
-        state = OrderedDict({
+        state = {
             "field_data": field_data,
             "elixir_data": elixir_data,
             "choice_data": choice_data,
             "card_data": card_data
-        })
+        }
 
         return state
 
@@ -109,6 +108,19 @@ class Handler:
         cv2.imwrite(f"Visualizations/Image.png", current_frame)
 
     # Interaction
+    def battle(self):
+        """
+        Clicks the "Battle" button in the Clash Royale window.
+
+        :return: None
+        """
+        self.scalars = self.get_window_scalars()
+        window_dimensions = self.get_window_dimensions()
+        battle_button_location = (78 * self.scalars[0] + window_dimensions[0],
+                                  278 * self.scalars[1] + window_dimensions[1]
+                                  )
+        ui.click(battle_button_location)
+        time.sleep(0.5)
 
     def start_training_game(self):
         """
@@ -177,6 +189,36 @@ class Handler:
         )
         ui.click(ok_button_location)
 
+    def acknowledge_reward_limit_reached(self):
+        """
+        Clicks the "Reward limit reached" button if it pops up, clicks a space and has no effect otherwise.
+
+        :return: None
+        """
+        self.scalars = self.get_window_scalars()
+        window_dimensions = self.get_window_dimensions()
+        ok_button_location = (
+            123 * self.scalars[0] + window_dimensions[0],
+            260 * self.scalars[1] + window_dimensions[1]
+        )
+        ui.click(ok_button_location)
+        time.sleep(0.5)
+
+    def ignore_new_reward(self):
+        """
+        Ignores new reward if available, otherwise does nothing.
+
+        :return: None
+        """
+        if self.check_for_new_reward():
+            self.scalars = self.get_window_scalars()
+            window_dimensions = self.get_window_dimensions()
+            ok_button_location = (
+                120 * self.scalars[0] + window_dimensions[0],
+                390 * self.scalars[1] + window_dimensions[1]
+            )
+            ui.click(ok_button_location)
+            time.sleep(0.5)
 
     # Verification
     def match_to_template(self, image, template, threshold):
@@ -207,6 +249,26 @@ class Handler:
         for size in ("XS", "S", "M", "L", "XL"):
             template = np.asarray(Image.open(f"Resources/Templates/OngoingGame{size}.png"))
             matches.append(self.match_to_template(rectangle, template, 0.30))
+
+        return not any(matches)
+
+    def game_is_over(self):
+        """
+        Checks if a competitive game is ongoing in the Clash Royale window.
+
+        :return: A boolean representing whether a competitive game is ongoing or not
+        """
+        frame = Image.fromarray(np.array(self.get_frame()))
+        rectangle = np.asarray(frame.crop((10, 25, 13, 28)))
+        rectangle = cv2.cvtColor(np.asarray(rectangle), cv2.COLOR_BGR2RGB)
+
+        cv2.imwrite("Resources/Data/EpisodialImageData/game_is_over.png", rectangle)
+        image = np.asarray(Image.open("Resources/Data/EpisodialImageData/game_is_over.png"))
+
+        matches = []
+        for size in ("XS", "S", "M", "L", "XL", "O"):
+            template = np.asarray(Image.open(f"Resources/Templates/OngoingBattle{size}.png"))
+            matches.append(self.match_to_template(image, template, 0.70))
 
         return not any(matches)
 
@@ -269,6 +331,7 @@ class Handler:
         crowns = [crown_1, crown_2, crown_3]
         templates = []
         battle_templates = []
+
         for num in range(1, 4):
             cv2.imwrite(f"Resources/Data/EpisodialImageData/Player_{num}_crown.png", crowns[num - 1])
             templates.append(np.asarray(Image.open(f"Resources/Templates/Player_{num}_crown.png")))
@@ -299,19 +362,17 @@ class Handler:
 
         crowns = [crown_1, crown_2, crown_3]
         templates = []
-        battle_templates = []
 
         for num in range(1, 4):
             cv2.imwrite(f"Resources/Data/EpisodialImageData/Enemy_{num}_crown.png", crowns[num - 1])
             templates.append(np.asarray(Image.open(f"Resources/Templates/Enemy_{num}_crown.png")))
-            battle_templates.append(np.asarray(Image.open(f"Resources/Templates/Enemy_{num}_battle_crown.png")))
 
         crowns = []
         for num in range(1, 4):
             crowns.append(np.asarray(Image.open(f"Resources/Data/EpisodialImageData/Enemy_{num}_crown.png")))
 
-        for num, (crown, template, battle_template) in enumerate(zip(crowns, templates, battle_templates)):
-            if self.match_to_template(crown, template, 0.6) or self.match_to_template(crown, battle_template, 0.6):
+        for num, (crown, template) in enumerate(zip(crowns, templates)):
+            if self.match_to_template(crown, template, 0.6):
                 continue
             else:
                 return num
@@ -519,4 +580,6 @@ class Handler:
                 playable_cards.append([num, identity[0]])
         
         return playable_cards
+
+
 

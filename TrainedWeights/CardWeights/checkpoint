@@ -1,0 +1,2 @@
+model_checkpoint_path: "card_critic"
+all_model_checkpoint_paths: "card_critic"

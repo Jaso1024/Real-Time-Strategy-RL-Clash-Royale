@@ -1,0 +1,2 @@
+model_checkpoint_path: "state_encoder"
+all_model_checkpoint_paths: "state_encoder"

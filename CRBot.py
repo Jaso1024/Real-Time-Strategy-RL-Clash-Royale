@@ -34,11 +34,10 @@ class CRBot:
                 end_reward = -200.0
             else:
                 end_reward = 0
-
             total_reward = crowns_reward + end_reward
-            return total_reward
+            return total_reward, player_crowns, enemy_crowns
         else:
-            return 0.1
+            return -0.1, 0, 0
 
     def step(self, agent, env, state, duration):
         """
@@ -59,9 +58,9 @@ class CRBot:
             done = env.training_game_over()
 
         actions, probs, vals = agent.act(env, state)
-        reward = self.get_reward(env, done)
+        reward, pc, ec = self.get_reward(env, done)
         new_state = env.get_state()
-        return new_state, actions, probs, vals, reward, done
+        return new_state, actions, probs, vals, reward, done, pc, ec
 
     def start_training_game(self, env):
         """Starts a training game"""
@@ -79,9 +78,9 @@ class CRBot:
             env.leave_game()
             time.sleep(10)
     
-    def print_episode_stats(self, ep_num, duration, reward):
+    def print_episode_stats(self, ep_num, duration, reward, pc, ec):
         """Print episode stats."""
-        print(f"Episode: {ep_num} | Duration: {duration} | reward: {reward}")
+        print(f"Episode: {ep_num} | Duration: {duration} | reward: {reward} | Player crowns: {pc} | Enemy crowns {ec}")
         print("------------------------------------------------------------")
 
         
@@ -95,14 +94,14 @@ class CRBot:
         episode_start_time = time.time()
         while not done:
             duration = time.time() - episode_start_time
-            new_state, actions, probs, vals, reward, done = self.step(agent, env, state, duration)
+            new_state, actions, probs, vals, reward, done, pc, ec = self.step(agent, env, state, duration)
             agent.act(env, state)
             agent.experience((state, actions, probs, vals, reward, done))
             total_reward += reward
             state = new_state
 
         self.leave_game(env)
-        return duration, total_reward
+        return duration, total_reward, pc, ec
 
     def play(self, episodes=1, learn=True, spells=False, load=True, save=True):
         """
@@ -123,15 +122,15 @@ class CRBot:
         env = Handler(spells)
         agent = Agent(load)
 
-        best_reward = float(-inf)
+        best_reward = 255
         
         for ep in range(1, episodes + 1):
-            duration, total_reward = self.run_episode(agent, env)
+            duration, total_reward, pc, ec = self.run_episode(agent, env)
             if duration < 25:
                 break
-            self.print_episode_stats(ep, duration, total_reward)
+            self.print_episode_stats(ep, duration, total_reward, pc, ec)
             agent.train()
-            if total_reward > best_reward and save:
+            if total_reward > best_reward and save: 
                 agent.save()
 
             

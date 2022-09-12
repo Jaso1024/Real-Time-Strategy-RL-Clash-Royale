@@ -1,0 +1,2 @@
+model_checkpoint_path: "shell_critic"
+all_model_checkpoint_paths: "shell_critic"

@@ -31,49 +31,41 @@ class StateAutoEncoder(Model):
         self.card_3 = Dense(128, activation='relu', name="Card_layer_3-Dense", kernel_initializer=initializer)
 
         # Field
-        self.field_player_1 = Conv2D(256, 5, padding="same", activation=None, name="Field_player_layer_1-Conv2D", kernel_initializer=initializer)
+        self.field_player_1 = Conv2D(256, 5, padding="same", activation="relu", name="Field_player_layer_1-Conv2D", kernel_initializer=initializer)
         self.field_player_2 = BatchNormalization()
-        self.field_player_3 = LeakyReLU(0.2)
-        self.field_player_4 = Conv2D(64, 3, strides=2, padding="same", activation=None, name="Field_player_layer_2-Conv2D", kernel_initializer=initializer)
-        self.field_player_5 = BatchNormalization()
-        self.field_player_6 = LeakyReLU(0.2)
-        self.field_player_7 = Conv2D(128, 3, strides=2, padding="same", activation=None, name="Field_player_layer_3-Conv2D", kernel_initializer=initializer)
+        self.field_player_3 = Conv2D(64, 3, strides=2, padding="same", activation="relu", name="Field_player_layer_2-Conv2D", kernel_initializer=initializer)
+        self.field_player_4 = BatchNormalization()
+        self.field_player_5 = Conv2D(128, 3, strides=2, padding="same", activation="relu", name="Field_player_layer_3-Conv2D", kernel_initializer=initializer)
+        self.field_player_6 = BatchNormalization()
+        self.field_player_7 = Conv2D(128, 3, strides=2, padding="same", activation="relu", name="Field_player_layer_3-Conv2D", kernel_initializer=initializer)
         self.field_player_8 = BatchNormalization()
-        self.field_player_9 = LeakyReLU(0.2)
-        self.field_player_10 = Conv2D(128, 3, strides=2, padding="same", activation=None, name="Field_player_layer_3-Conv2D", kernel_initializer=initializer)
-        self.field_player_11 = BatchNormalization()
-        self.field_player_12 = LeakyReLU(0.2)
-        self.field_player_13 = Flatten(name="Field_player_layer_4-Flatten")
+        self.field_player_9 = Flatten(name="Field_player_layer_4-Flatten")
 
-        self.field_enemy_1 = Conv2D(256, 5, padding="same", activation=None, name="Field_player_layer_1-Conv2D", kernel_initializer=initializer)
+        self.field_enemy_1 = Conv2D(256, 5, padding="same", activation="relu", name="Field_player_layer_1-Conv2D", kernel_initializer=initializer)
         self.field_enemy_2 = BatchNormalization()
-        self.field_enemy_3 = LeakyReLU(0.2)
-        self.field_enemy_4 = Conv2D(64, 3, strides=2, padding="same", activation=None, name="Field_enemy_layer_2-Conv2D", kernel_initializer=initializer)
-        self.field_enemy_5 = BatchNormalization()
-        self.field_enemy_6 = LeakyReLU(0.2)
-        self.field_enemy_7 = Conv2D(128, 3, strides=2, padding="same", activation=None, name="Field_enemy_layer_3-Conv2D", kernel_initializer=initializer)
+        self.field_enemy_3 = Conv2D(64, 3, strides=2, padding="same", activation="relu", name="Field_enemy_layer_2-Conv2D", kernel_initializer=initializer)
+        self.field_enemy_4 = BatchNormalization()
+        self.field_enemy_5 = Conv2D(128, 3, strides=2, padding="same", activation="relu", name="Field_enemy_layer_3-Conv2D", kernel_initializer=initializer)
+        self.field_enemy_6 = BatchNormalization()
+        self.field_enemy_7 = Conv2D(128, 3, strides=2, padding="same", activation="relu", name="Field_enemy_layer_3-Conv2D", kernel_initializer=initializer)
         self.field_enemy_8 = BatchNormalization()
-        self.field_enemy_9 = LeakyReLU(0.2)
-        self.field_enemy_10 = Conv2D(128, 3, strides=2, padding="same", activation=None, name="Field_enemy_layer_3-Conv2D", kernel_initializer=initializer)
-        self.field_enemy_11 = BatchNormalization()
-        self.field_enemy_12 = LeakyReLU(0.2)
-        self.field_enemy_13 = Flatten(name="Field_enemy_layer_4-Flatten")
+        self.field_enemy_9 = Flatten(name="Field_enemy_layer_4-Flatten")
 
         self.bridge_1 = Flatten(name="Field_layer_5-Flatten")
         self.bridge_2 = Dense(32, activation="relu", name="Field_layer_6-Dense", kernel_initializer=initializer)
 
         # combined
-        self.combined_1 = Dense(4096, activation=None, name="Combined_factors_layer_1-Dense", kernel_initializer=initializer)
-        self.combined_2 = LeakyReLU(0.2)
+        self.combined_1 = Dense(4096, activation="relu", name="Combined_factors_layer_1-Dense", kernel_initializer=initializer)
 
         # decoder
-        self.elixir_1_d = Dense(64, activation="relu")
+        self.elixir_1_d = Dense(1, activation="relu")
         self.card_1_d = Dense(9, activation="sigmoid")
         self.field_player_1_d = Dense(1683, activation="relu")
         self.field_player_2_d = Reshape((33, 51))
         self.field_enemy_1_d = Dense(1632, activation="relu")
         self.field_enemy_2_d = Reshape((32, 51))
-        self.brigde_1_d = Dense(24, activation="relu")
+        self.bridge_l_1_d = Dense(24, activation="relu")
+        self.bridge_r_1_d = Dense(24, activation="relu")
         self.bridge_2_d = Reshape((6,4))
 
 
@@ -120,10 +112,6 @@ class StateAutoEncoder(Model):
         field_p_x = self.field_player_7(field_p_x)
         field_p_x = self.field_player_8(field_p_x)
         field_p_x = self.field_player_9(field_p_x)
-        field_p_x = self.field_player_10(field_p_x)
-        field_p_x = self.field_player_11(field_p_x)
-        field_p_x = self.field_player_12(field_p_x)
-        field_p_x = self.field_player_13(field_p_x)
 
         field_e_x = self.field_enemy_1(field_e_in)
         field_e_x = self.field_enemy_2(field_e_x)
@@ -134,10 +122,6 @@ class StateAutoEncoder(Model):
         field_e_x = self.field_enemy_7(field_e_x)
         field_e_x = self.field_enemy_8(field_e_x)
         field_e_x = self.field_enemy_9(field_e_x)
-        field_e_x = self.field_enemy_10(field_e_x)
-        field_e_x = self.field_enemy_11(field_e_x)
-        field_e_x = self.field_enemy_12(field_e_x)
-        field_e_x = self.field_enemy_13(field_e_x)
 
         field_l_x = self.bridge_1(field_l_in)
         field_l_x = self.bridge_2(field_l_x)
@@ -147,7 +131,6 @@ class StateAutoEncoder(Model):
 
         x = concatenate([elixir_x, card_1x, card_2x, card_3x, card_4x, field_p_x, field_e_x, field_l_x, field_r_x])
         x = self.combined_1(x)
-        x = self.combined_2(x)
         return x
     
     def call(self, inputs):
@@ -180,10 +163,6 @@ class StateAutoEncoder(Model):
         field_p_x = self.field_player_7(field_p_x)
         field_p_x = self.field_player_8(field_p_x)
         field_p_x = self.field_player_9(field_p_x)
-        field_p_x = self.field_player_10(field_p_x)
-        field_p_x = self.field_player_11(field_p_x)
-        field_p_x = self.field_player_12(field_p_x)
-        field_p_x = self.field_player_13(field_p_x)
 
         field_e_x = self.field_enemy_1(field_e_in)
         field_e_x = self.field_enemy_2(field_e_x)
@@ -194,10 +173,6 @@ class StateAutoEncoder(Model):
         field_e_x = self.field_enemy_7(field_e_x)
         field_e_x = self.field_enemy_8(field_e_x)
         field_e_x = self.field_enemy_9(field_e_x)
-        field_e_x = self.field_enemy_10(field_e_x)
-        field_e_x = self.field_enemy_11(field_e_x)
-        field_e_x = self.field_enemy_12(field_e_x)
-        field_e_x = self.field_enemy_13(field_e_x)
 
         field_l_x = self.bridge_1(field_l_in)
         field_l_x = self.bridge_2(field_l_x)
@@ -207,8 +182,6 @@ class StateAutoEncoder(Model):
 
         x = concatenate([elixir_x, card_1x, card_2x, card_3x, card_4x, field_p_x, field_e_x, field_l_x, field_r_x])
         x = self.combined_1(x)
-        x = self.combined_2(x)
-
         e  = self.elixir_1_d(x)
 
         c1 = self.card_1_d(x)
@@ -223,10 +196,10 @@ class StateAutoEncoder(Model):
         fe = self.field_enemy_1_d(x)
         fe = self.field_enemy_2_d(fe)
 
-        bleft = self.brigde_1_d(x)
+        bleft = self.bridge_l_1_d(x)
         bleft = self.bridge_2_d(bleft)
 
-        bright = self.brigde_1_d(x)
+        bright = self.bridge_r_1_d(x)
         bright = self.bridge_2_d(bright)
 
         return e, [[c1, c2, c3, c4]], fp, fe, bleft, bright
@@ -273,7 +246,7 @@ class StateAutoEncoder(Model):
 class Critic(Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.c1 = Dense(1, activation=None)
+        self.c1 = Dense(1, activation="relu")
         self.c2 = LeakyReLU(0.2)
     
     def call(self, inp):
@@ -302,12 +275,10 @@ class TileActor(Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.tile_1 = Dense(48, activation="relu")
         self.tile_2 = Dense(9, activation="softmax")
     
     def call(self, inp):
-        shell_tile = self.tile_1(inp)
-        shell_tile = self.tile_2(shell_tile)
+        shell_tile = self.tile_2(inp)
         return shell_tile
 
 class CardActor(Model):
