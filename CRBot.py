@@ -37,7 +37,7 @@ class CRBot:
             total_reward = crowns_reward + end_reward
             return total_reward, player_crowns, enemy_crowns
         else:
-            return -0.1, 0, 0
+            return 1, 0, 0
 
     def step(self, agent, env, state, duration):
         """
@@ -122,7 +122,7 @@ class CRBot:
         env = Handler(spells)
         agent = Agent(load)
 
-        best_reward = 255
+        best_reward = -float(inf)
         
         for ep in range(1, episodes + 1):
             duration, total_reward, pc, ec = self.run_episode(agent, env)
