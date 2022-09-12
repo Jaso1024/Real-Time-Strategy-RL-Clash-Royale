@@ -43,7 +43,7 @@ In order for a tile to be considered a shell tile it must be directly touching t
 
 ## Reward function
 The agent gets the following rewards:
-- Step reward: `-0.1`
+- Step reward: `+1`
 - Win reward: `+300`
 - Loss reward: `-200`
 ### Crowns
