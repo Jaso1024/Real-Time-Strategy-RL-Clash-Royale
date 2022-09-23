@@ -16,7 +16,7 @@ At each timestep t, the current state of the game will be broken into 9 parts:
 - An estimate of the current amount of elixir the player has (provided by another neural network).
 - 4 one-hot encoded vectors, each corresponding to a card currently in the players hand.
 
-these 9 parts are passed through the encoding half of an autoencoder, which returns a single vector, which will be given to each of the 3 agents.
+these 9 parts are encoded by an autoencoder, which returns a single vector, which will then be given to each of the 3 agents.
 
 ## Actions
 At every timestep t, each of the 3 agent's actors will choose an action, these individual actions will be combined and a single action will be excecuted in the environment.
