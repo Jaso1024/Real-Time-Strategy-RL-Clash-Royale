@@ -1,5 +1,5 @@
 # ClashRoyaleRL
-This project contains code that trains several neural networks, with the end goal of playing against and defeating the opponent of a Training match in Supercell's Clash Royale. The technique used is [Proximal-Policy-Optimization](https://arxiv.org/abs/1707.06347) combined with [multi-agent reinforcement learning](https://arxiv.org/abs/1911.10635) and also makes use of both [state abstraction](https://ala2021.vub.ac.be/papers/ALA2021_paper_50.pdf) and [action-space factoring](https://arxiv.org/abs/1705.07269).
+This project contains code that trains several neural networks, with the end goal of defeating the training opponent in the real-time strategy game Clash Royale. The main reinforcement learning technique implemented in this project is [Proximal-Policy-Optimization](https://arxiv.org/abs/1707.06347) combined with [multi-agent reinforcement learning](https://arxiv.org/abs/1911.10635) and also makes use of both [state abstraction](https://ala2021.vub.ac.be/papers/ALA2021_paper_50.pdf) and [action-space factoring](https://arxiv.org/abs/1705.07269).
 
 #### NOTE: Changing the code in order to use this bot for competetive Clash Royale games is a violation of Supercell's TOS. 
 
